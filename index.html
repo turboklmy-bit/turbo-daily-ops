@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111827" />
-  <title>Turbo Daily Ops · Professional v5</title>
+  <title>Turbo Daily Ops · Professional v6</title>
   <style>
     :root{
       --bg:#f4f1ea;
@@ -90,6 +90,13 @@
     .pill.absent,.pill.fixed{background:var(--redbg);color:var(--red);border-color:#fecdd3}.pill.active,.day.active,.smallBtn.active{background:linear-gradient(135deg,var(--black),#2b2f39);color:#fff;border-color:#2b2f39}.pill.gold{background:var(--gold3);color:#795316;border-color:#ead59f}
     .input,select,textarea{width:100%;border:1px solid var(--line);border-radius:17px;padding:14px;background:#fff;outline:none;transition:.16s ease}.input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(185,137,47,.12)}
     .adminBox{border:1px solid rgba(213,197,168,.65);background:rgba(255,255,255,.84);border-radius:24px;padding:18px;margin:14px 0;box-shadow:var(--shadow2)}
+    .loginPanel{max-width:680px;margin:20px auto 0}
+    .adminChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+    .adminChoice{border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px 12px;font-weight:900;cursor:pointer;transition:.18s ease}
+    .adminChoice:hover{transform:translateY(-1px);border-color:var(--line2);box-shadow:var(--shadow2)}
+    .adminChoice.active{background:var(--black);color:white;border-color:var(--black);box-shadow:0 8px 22px rgba(17,24,39,.18)}
+    .loginActions{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:10px}
+    @media(max-width:600px){.adminChoices{grid-template-columns:1fr}.loginActions{grid-template-columns:1fr}}
     .prioGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
     .prioCard{border:1px solid rgba(213,197,168,.7);border-radius:24px;background:rgba(255,255,255,.86);padding:16px;box-shadow:var(--shadow2)}
     .prioHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
@@ -115,7 +122,7 @@
     const SUPABASE_KEY = "sb_publishable_wDCGxWePLoZRLe0oRquorg_YoFa07uo";
     const TABLE = "ops_settings";
     const ID = 1;
-    const APP_VERSION = "professional-v5";
+    const APP_VERSION = "professional-v7";
     const days = [
       {key:'mon',label:'星期一'}, {key:'tue',label:'星期二'}, {key:'wed',label:'星期三'},
       {key:'thu',label:'星期四'}, {key:'fri',label:'星期五'}, {key:'sat',label:'星期六'}, {key:'sun',label:'星期日'}
@@ -129,11 +136,10 @@
       delivery:{title:'送货人员',hint:'送货提醒'}
     };
     const NAME_MAP = {"YN":"Yun Ning","PL":"Pei Ling","MX":"Mei Xin","JX":"Kah Yen"};
-    const ADMIN_PINS = {"老板":"4545","Calvin":"0209","Mei Xin":"0620"};
+    const ADMIN_PIN_HASHES = {"老板":"f1c96796e3e0422519e4fbaf58e9484e22b817d5b278229dd238a3e29f632564","Calvin":"c7a938c5b62db92fbea75e960129c304c42b987232e9877228e0a616e08a91be","Mei Xin":"a4eaffc56e3ef8336fafebac9827dc92f1751cc7227434abe0785caee50011b5"};
     const defaultSettings = {
       people:["Yun Ning","Pei Ling","老板","小宝","Mei Xin","Kah Yen","Annie","Vivi","Calvin"],
       adminPeople:["老板","Mei Xin","Calvin"],
-      adminPins:{...ADMIN_PINS},
       developerNotes:"",
       regularOff:{mon:[],tue:["Yun Ning"],wed:["Pei Ling"],thu:["Kah Yen"],fri:["Vivi"],sat:[],sun:["Annie","Calvin"]},
       extraAbsentByDate:{},
@@ -155,7 +161,7 @@
     let state = {
       tab:'today', selectedDay:'mon', settings: structuredClone(defaultSettings),
       selectedPerson: localStorage.getItem('turboSelectedPersonV5') || '',
-      adminUser:'', now:new Date(), loading:false, _daySet:false, dragged:null, dropTarget:null, lastMigration:false
+      adminUser:'', loginUser:'老板', now:new Date(), loading:false, _daySet:false, dragged:null, dropTarget:null, lastMigration:false
     };
     let sb = null;
     const app = document.getElementById('app');
@@ -172,7 +178,6 @@
       const before = JSON.stringify(p);
       p.people = normList(p.people || defaultSettings.people);
       p.adminPeople = ["老板","Mei Xin","Calvin"];
-      p.adminPins = {...ADMIN_PINS};
       p.regularOff = {...defaultSettings.regularOff, ...normObjectLists(p.regularOff)};
       p.rolePriorities = {...defaultSettings.rolePriorities, ...normObjectLists(p.rolePriorities)};
       const ex={}; for(const [date,list] of Object.entries(p.extraAbsentByDate||{})) ex[date]=normList(list); p.extraAbsentByDate=ex;
@@ -189,7 +194,6 @@
       state.settings.rolePriorities = {...defaultSettings.rolePriorities, ...(p.rolePriorities||{})};
       state.settings.extraAbsentByDate = {...(p.extraAbsentByDate||{})};
       state.settings.reminderTimes = {...defaultSettings.reminderTimes, ...(p.reminderTimes||{})};
-      state.settings.adminPins = {...ADMIN_PINS};
       state.settings.adminPeople = ["老板","Mei Xin","Calvin"];
       state.lastMigration = mig.changed;
       if(state.selectedPerson && !state.settings.people.includes(state.selectedPerson)){
@@ -239,15 +243,22 @@
       return {out, absent, def, ex, all, now};
     }
     function resolveAdminFromUrl(){
-      const pin = String(urlParams.get('admin') || urlParams.get('pin') || '').trim();
-      const userRaw = urlParams.get('user') || '';
-      const user = normName(userRaw);
-      if(!pin) return;
-      if(user && ADMIN_PINS[user] === pin){ state.adminUser = user; localStorage.setItem('turboAdminUserV5', user); return; }
-      const found = Object.entries(ADMIN_PINS).find(([_,p]) => p === pin);
-      if(found){ state.adminUser = found[0]; localStorage.setItem('turboAdminUserV5', found[0]); }
+      // Admin login is handled inside the page. No admin password is accepted through URL.
+      return;
     }
     function isAdmin(){ return !!state.adminUser && state.settings.adminPeople.includes(state.adminUser); }
+    async function sha256Hex(value){
+      const data = new TextEncoder().encode(value);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+    async function checkAdminPin(user,pin){
+      const u = normName(user);
+      const expected = ADMIN_PIN_HASHES[u];
+      if(!expected) return false;
+      const actual = await sha256Hex(`${u}:${String(pin||'').trim()}`);
+      return actual === expected;
+    }
 
     async function init(){
       try{
@@ -290,7 +301,7 @@
         if(patch.regularOff) merged.regularOff={...(latest.regularOff||{}),...patch.regularOff};
         if(patch.rolePriorities) merged.rolePriorities={...(latest.rolePriorities||{}),...patch.rolePriorities};
         if(patch.reminderTimes) merged.reminderTimes={...(latest.reminderTimes||{}),...patch.reminderTimes};
-        merged.adminPeople=["老板","Mei Xin","Calvin"]; merged.adminPins={...ADMIN_PINS};
+        merged.adminPeople=["老板","Mei Xin","Calvin"];
         const {data,error}=await sb.from(TABLE).upsert({id:ID,payload:merged},{onConflict:'id'}).select('payload').single();
         if(error) throw error;
         mergeSettings(data?.payload||merged); if(!silent) setStatus('保存成功 · 正在同步到所有手机','ok');
@@ -327,9 +338,20 @@
     }
     function renderAdmin(now){
       if(!isAdmin()){
-        app.innerHTML = `<h1 class="title">Admin 设置</h1><div class="sub">Admin 不再使用输入框登入。请用专属链接进入，避免手机浏览器卡住。</div>
-          <div class="card"><div class="label">Admin 专属链接</div><div class="notice gold">老板：<b>?admin=4545</b><br>Calvin：<b>?admin=0209</b><br>Mei Xin：<b>?admin=0620</b></div>
-          <div class="quickLinks"><code>https://turboklmy-bit.github.io/turbo-daily-ops/?admin=4545</code><code>https://turboklmy-bit.github.io/turbo-daily-ops/?admin=0209</code><code>https://turboklmy-bit.github.io/turbo-daily-ops/?admin=0620</code></div></div>`; return;
+        const chosen = state.loginUser || '老板';
+        app.innerHTML = `<h1 class="title">Admin 设置</h1><div class="sub">员工可直接查看；Admin 选择账号并输入对应密码后才能修改资料。</div>
+          <div class="card loginPanel">
+            <div class="label">选择 Admin 账号</div>
+            <div class="adminChoices">${state.settings.adminPeople.map(u=>`<button type="button" class="adminChoice ${chosen===u?'active':''}" onclick="selectAdminUser('${esc(u)}')">${esc(u)}</button>`).join('')}</div>
+            <div class="label">输入密码</div>
+            <div class="loginActions">
+              <input id="adminPinInput" class="input" type="password" inputmode="numeric" autocomplete="one-time-code" placeholder="输入 ${esc(chosen)} 的密码" onkeydown="if(event.key==='Enter') adminLogin()">
+              <button type="button" class="btn gold" onclick="adminLogin()">登入 Admin</button>
+            </div>
+            <div class="notice gold" style="margin-top:14px">Admin 账号验证通过后才可以修改资料。</div>
+          </div>`;
+        setTimeout(()=>{ const el=document.getElementById('adminPinInput'); if(el) el.focus(); },80);
+        return;
       }
       const s=state.settings, ex=s.extraAbsentByDate?.[now.date]||[];
       app.innerHTML = `<h1 class="title">Admin 设置</h1><div class="sub">当前 Admin：${esc(state.adminUser)} · 所有修改会同步到全部员工手机</div>
@@ -348,7 +370,9 @@
         <div class="divider"></div><div class="row">${canAdd.map(p=>`<button class="smallBtn" onclick="addPrio('${k}','${esc(p)}')">+ ${esc(p)}</button>`).join('')||'<span class="muted">所有员工已加入此岗位</span>'}</div></div>`;
     }
     window.selectPerson=(p)=>{ state.selectedPerson=normName(p); if(state.selectedPerson)localStorage.setItem('turboSelectedPersonV5',state.selectedPerson); else localStorage.removeItem('turboSelectedPersonV5'); renderMe(); };
-    window.logoutAdmin=()=>{ state.adminUser=''; localStorage.removeItem('turboAdminUserV5'); history.replaceState(null,'',location.pathname+'?v=5'); renderAdmin(todayParts()); };
+    window.selectAdminUser=(u)=>{ state.loginUser=normName(u); renderAdmin(todayParts()); };
+    window.adminLogin=async()=>{ const user=normName(state.loginUser||'老板'); const input=document.getElementById('adminPinInput'); const pin=String(input?.value||'').trim(); if(await checkAdminPin(user,pin)){ state.adminUser=user; localStorage.setItem('turboAdminUserV5', user); renderAdmin(todayParts()); setStatus('Admin 已登入：'+user,'ok'); } else { alert('密码不正确，请重新输入'); if(input){ input.value=''; input.focus(); } } };
+    window.logoutAdmin=()=>{ state.adminUser=''; localStorage.removeItem('turboAdminUserV5'); history.replaceState(null,'',location.pathname+'?v=7'); renderAdmin(todayParts()); };
     window.toggleExtra=(p)=>{ const date=todayParts().date; const cur=state.settings.extraAbsentByDate?.[date]||[]; const n=normName(p); const next=cur.includes(n)?cur.filter(x=>x!==n):[...cur,n]; savePatch({extraAbsentByDate:{[date]:next}}); };
     window.addEmployee=()=>{ const v=normName(document.getElementById('newEmp').value.trim()); if(!v||state.settings.people.includes(v)) return; savePatch({people:[...state.settings.people,v]}); };
     window.deleteEmployee=(p)=>{ p=normName(p); if(!confirm('确定删除 '+p+'？')) return; const people=state.settings.people.filter(x=>x!==p); const regularOff={}; for(const d of days) regularOff[d.key]=(state.settings.regularOff?.[d.key]||[]).filter(x=>x!==p); const rolePriorities={}; for(const k of Object.keys(roleMeta)) rolePriorities[k]=(state.settings.rolePriorities?.[k]||[]).filter(x=>x!==p); const extraAbsentByDate={}; for(const [date,list] of Object.entries(state.settings.extraAbsentByDate||{})) extraAbsentByDate[date]=(list||[]).filter(x=>x!==p); savePatch({people,regularOff,rolePriorities,extraAbsentByDate}); };
