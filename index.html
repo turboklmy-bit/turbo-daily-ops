@@ -1,272 +1,81 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, Package, ClipboardCheck, Video, FileText, CalendarDays, Clock3, AlertCircle, RotateCcw, Settings2, Truck, BellRing, UserRound, Users, Plus, Trash2, ArrowUp, ArrowDown, ShieldCheck, GripVertical, Code2, Copy } from "lucide-react";
-
-const defaultPeople = ["YN", "PL", "老板", "小宝", "MX", "JX", "Annie", "Vivi", "Calvin"];
-const adminPeople = ["老板", "MX", "Calvin"];
-const adminPin = "8888"; // Demo PIN。正式上线必须改成后端验证，不要把密码写在前端。
-
-const days = [
-  { key: "mon", label: "星期一" },
-  { key: "tue", label: "星期二" },
-  { key: "wed", label: "星期三" },
-  { key: "thu", label: "星期四" },
-  { key: "fri", label: "星期五" },
-  { key: "sat", label: "星期六" },
-  { key: "sun", label: "星期日" },
-];
-
-const defaultRegularOff = {
-  mon: [],
-  tue: ["YN"],
-  wed: ["PL"],
-  thu: ["JX"],
-  fri: ["Vivi"],
-  sat: [],
-  sun: ["Annie", "Calvin"],
-};
-
-const roleMeta = {
-  billing: { title: "开单", icon: FileText, reminder: "每小时检查一次，2:00 PM 后停止；6:00 PM 最后一次检查。" },
-  instant: { title: "包货 Instant", icon: Package, reminder: "每小时检查一次，2:00 PM 后停止；6:00 PM 最后一次检查。" },
-  normal: { title: "包货 Normal", icon: Package },
-  packingVideo: { title: "Packing Video 检查", icon: Video },
-  packingList: { title: "Packing List 检查", icon: ClipboardCheck },
-  delivery: { title: "送货人员", icon: Truck, reminder: "11:30 AM、6:30 PM 提醒送货。" },
-};
-
-const defaultRolePriorities = {
-  billing: ["YN", "PL", "老板", "小宝"],
-  instant: ["MX", "JX", "PL", "Vivi", "小宝", "Annie"],
-  normal: ["JX", "MX", "PL", "Vivi", "小宝", "Annie"],
-  packingVideo: ["MX", "Calvin", "老板"],
-  packingList: ["Calvin", "MX", "老板"],
-  delivery: ["Calvin", "老板"],
-};
-
-function readStorage(key, fallback) {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch { return fallback; }
-}
-function saveStorage(key, value) {
-  try { if (typeof window !== "undefined") localStorage.setItem(key, JSON.stringify(value)); } catch {}
-}
-function formatMalaysiaDateTime(date) {
-  const parts = new Intl.DateTimeFormat("zh-MY", { timeZone: "Asia/Kuala_Lumpur", year: "numeric", month: "2-digit", day: "2-digit", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true }).formatToParts(date);
-  const get = (type) => parts.find((p) => p.type === type)?.value || "";
-  return { date: `${get("year")}-${get("month")}-${get("day")}`, weekday: get("weekday"), time: `${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}` };
-}
-function moveToLast(list, person) { return list.includes(person) ? [...list.filter((p) => p !== person), person] : list; }
-function getPriority(roleKey, absentSet, allPresent, rolePriorities) {
-  let list = [...(rolePriorities[roleKey] || [])];
-  if ((roleKey === "instant" || roleKey === "normal") && absentSet.has("YN") && list.includes("PL")) {
-    list = list.filter((p) => p !== "PL");
-    const insertBeforeAnnie = list.indexOf("Annie");
-    if (insertBeforeAnnie >= 0) list.splice(insertBeforeAnnie, 0, "PL"); else list.push("PL");
-  }
-  if (allPresent) list = moveToLast(list, "小宝");
-  return list.filter((p) => !absentSet.has(p));
-}
-function resolveAssignments(absentSet, allPresent, rolePriorities) {
-  const billing = getPriority("billing", absentSet, allPresent, rolePriorities);
-  const instant = getPriority("instant", absentSet, allPresent, rolePriorities);
-  const normal = getPriority("normal", absentSet, allPresent, rolePriorities);
-  const packingVideo = getPriority("packingVideo", absentSet, allPresent, rolePriorities);
-  const packingVideoMain = packingVideo[0] || null;
-  const rawList = getPriority("packingList", absentSet, allPresent, rolePriorities);
-  const listChangedByDuplicate = Boolean(packingVideoMain && rawList[0] === packingVideoMain);
-  const packingList = listChangedByDuplicate ? rawList.filter((p) => p !== packingVideoMain) : rawList;
-  const delivery = getPriority("delivery", absentSet, allPresent, rolePriorities);
-  return {
-    billing: { available: billing, main: billing[0] || "无人可安排" },
-    instant: { available: instant, main: instant[0] || "无人可安排" },
-    normal: { available: normal, main: normal[0] || "无人可安排" },
-    packingVideo: { available: packingVideo, main: packingVideo[0] || "无人可安排" },
-    packingList: { available: packingList, main: packingList[0] || "无人可安排", duplicateWarning: listChangedByDuplicate, skippedPerson: packingVideoMain },
-    delivery: { available: delivery, main: delivery[0] || "无人可安排" },
-  };
-}
-function playAlarmSound() {
-  try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const beep = (time, frequency) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.start(time);
-      gainNode.gain.setValueAtTime(0.0001, time);
-      gainNode.gain.exponentialRampToValueAtTime(0.25, time + 0.01);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, time + 0.35);
-      oscillator.stop(time + 0.35);
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Turbo Daily Ops 每日负责人安排</title>
+  <style>
+    :root{--bg:#f6f6f6;--card:#fff;--text:#171717;--muted:#737373;--line:#dedede;--black:#111;--red:#991b1b;--redbg:#fee2e2;--green:#166534;--greenbg:#dcfce7;--yellow:#854d0e;--yellowbg:#fef3c7;--blue:#1d4ed8;}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif} button,input,select,textarea{font:inherit} .wrap{max-width:980px;margin:0 auto;padding:18px 16px 60px}.tabs{position:sticky;top:0;background:rgba(246,246,246,.94);backdrop-filter:blur(10px);z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px 0}.tab{border:0;border-radius:18px;background:#eee;padding:14px 10px;font-weight:800;color:#444}.tab.active{background:#111;color:#fff}.title{font-size:36px;line-height:1.05;font-weight:950;margin:28px 0 8px}.sub{color:var(--muted);font-size:18px;margin-bottom:24px}.card{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:22px;margin:14px 0;box-shadow:0 1px 1px rgba(0,0,0,.02)}.label{color:var(--muted);font-size:15px;margin-bottom:8px}.big{font-size:28px;font-weight:950}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.between{display:flex;justify-content:space-between;align-items:center;gap:12px}.section{font-size:25px;font-weight:950;margin:30px 0 14px}.pill,.day,.smallBtn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:12px 18px;font-weight:850}.pill.absent{background:var(--redbg);color:var(--red);border-color:#fecaca}.pill.fixed{background:var(--redbg);color:var(--red);border-color:#fecaca}.day.active,.smallBtn.active{background:#111;color:#fff}.roleGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.roleTitle{font-size:22px;font-weight:950}.reminder{background:var(--yellowbg);color:var(--yellow);border-radius:18px;padding:14px 16px;line-height:1.5;margin:14px 0}.mainPerson{background:#111;color:#fff;border-radius:22px;padding:18px 20px;margin:14px 0}.mainPerson .name{font-size:42px;font-weight:950}.listItem{border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:8px 0;background:#fff;display:flex;justify-content:space-between;align-items:center}.badge{font-size:13px;background:var(--greenbg);color:var(--green);padding:6px 10px;border-radius:999px;font-weight:800}.input{width:100%;border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}.btn{border:0;border-radius:16px;background:#111;color:#fff;font-weight:900;padding:13px 18px}.btn.light{background:#fff;color:#111;border:1px solid var(--line)}.btn.danger{background:#fee2e2;color:#991b1b}.btn.green{background:#dcfce7;color:#166534}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.notice{border-radius:18px;padding:14px 16px;margin:12px 0;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}.error{background:#fee2e2;color:#991b1b;border-color:#fecaca}.ok{background:#dcfce7;color:#166534;border-color:#bbf7d0}.adminBox{border:1px solid var(--line);background:#fff;border-radius:24px;padding:18px;margin:14px 0}.muted{color:var(--muted)}.prioCard{border:1px solid var(--line);border-radius:22px;background:#fff;padding:16px;margin:12px 0}.priorityRow{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:8px;align-items:center;border-top:1px solid #f1f1f1;padding:9px 0}.priorityRow:first-of-type{border-top:0}.hidden{display:none!important}@media(max-width:640px){.title{font-size:31px}.big{font-size:24px}.wrap{padding-left:14px;padding-right:14px}.tabs{gap:8px}.tab{font-size:15px;padding:12px 6px}.grid2{grid-template-columns:1fr}.mainPerson .name{font-size:38px}.priorityRow{grid-template-columns:auto 1fr auto auto auto}.btn{padding:11px 13px}.pill,.day{padding:10px 14px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="tabs"><button class="tab active" data-tab="today">今日安排</button><button class="tab" data-tab="me">我的身份</button><button class="tab" data-tab="admin">Admin 设置</button></div>
+    <div id="status" class="notice">正在连接 Supabase...</div>
+    <main id="app"></main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://wwjgazaylhtnzawlofmy.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_wDCGxWePLoZRLe0oRquorg_YoFa07uo";
+    const TABLE = "ops_settings";
+    const ID = 1;
+    const days = [{key:'mon',label:'星期一'},{key:'tue',label:'星期二'},{key:'wed',label:'星期三'},{key:'thu',label:'星期四'},{key:'fri',label:'星期五'},{key:'sat',label:'星期六'},{key:'sun',label:'星期日'}];
+    const roleMeta = {
+      billing:{title:'开单',reminder:'每小时检查一次，2:00 PM 后停止；6:00 PM 最后一次检查。'},
+      instant:{title:'包货 Instant',reminder:'每小时检查一次，2:00 PM 后停止；6:00 PM 最后一次检查。'},
+      normal:{title:'包货 Normal'},
+      packingVideo:{title:'Packing Video 检查'},
+      packingList:{title:'Packing List 检查'},
+      delivery:{title:'送货人员',reminder:'11:30 AM、6:30 PM 提醒送货。'}
     };
-    const t = audioContext.currentTime;
-    beep(t, 880); beep(t + 0.4, 988); beep(t + 0.8, 1046);
-  } catch (err) { console.error("Alarm sound failed", err); }
-}
-function triggerBrowserNotification(title, body) {
-  if (typeof window === "undefined") return;
-  if ("Notification" in window) {
-    if (Notification.permission === "granted") new Notification(title, { body });
-    else if (Notification.permission !== "denied") Notification.requestPermission().then((p) => { if (p === "granted") new Notification(title, { body }); });
-  }
-  playAlarmSound();
-}
-function ActiveButton({ active, disabled, className = "", children, ...props }) {
-  return <Button disabled={disabled} variant={active ? "default" : "outline"} className={`rounded-xl transition ${active ? "ring-2 ring-neutral-300 scale-[1.01]" : ""} ${className}`} {...props}>{children}</Button>;
-}
-function ReminderBox({ text, activeForMe }) {
-  if (!text) return null;
-  return <div className={`mb-4 rounded-xl border px-3 py-2 text-sm flex items-start gap-2 ${activeForMe ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}><BellRing className="w-4 h-4 mt-0.5 shrink-0" /><span>{text} {activeForMe ? "当前岗位属于你，到点会响。" : "若不是你的岗位，到点不会响。"}</span></div>;
-}
-function RoleCard({ roleKey, assignment, selectedPerson }) {
-  const role = roleMeta[roleKey];
-  const Icon = role.icon;
-  const activeForMe = Boolean(role.reminder && selectedPerson && assignment.main === selectedPerson);
-  return (
-    <Card className={`rounded-2xl shadow-sm border bg-white overflow-hidden ${activeForMe ? "ring-2 ring-green-300" : ""}`}>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between gap-3 mb-4"><div className="flex items-center gap-3"><div className="p-2 rounded-xl bg-neutral-100"><Icon className="w-5 h-5" /></div><div><div className="text-sm text-neutral-500">负责岗位</div><div className="font-semibold text-lg">{role.title}</div></div></div>{assignment.duplicateWarning && <div className="relative" title="Packing List 因负责人重复而自动跳到下一位"><span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-pulse" /><AlertCircle className="w-5 h-5 text-red-500" /></div>}</div>
-        <ReminderBox text={role.reminder} activeForMe={activeForMe} />
-        <div className={`rounded-xl text-white p-4 mb-4 ${assignment.duplicateWarning ? "bg-red-900" : activeForMe ? "bg-green-900" : "bg-neutral-900"}`}><div className="text-xs opacity-70">当天负责人</div><div className="text-3xl font-bold mt-1">{assignment.main}</div>{activeForMe && <div className="mt-2 text-xs text-green-100">这是你的提醒岗位</div>}{assignment.duplicateWarning && <div className="mt-2 text-xs text-red-100">因 Packing Video 已由 {assignment.skippedPerson} 负责，List 自动跳下一位。</div>}</div>
-        <div className="space-y-2"><div className="text-sm font-medium text-neutral-600">可用优先顺序</div>{assignment.available.length > 0 ? assignment.available.map((p, i) => <div key={p} className="flex items-center justify-between rounded-lg border px-3 py-2"><span className="font-medium">{i + 1}. {p}</span>{i === 0 && <span className="text-xs rounded-full bg-green-100 text-green-700 px-2 py-1">负责人</span>}</div>) : <div className="text-sm text-red-600">没有可用人员，请手动安排。</div>}</div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function DailyOpsRosterApp() {
-  const [triggeredReminders, setTriggeredReminders] = useState([]);
-  const [selectedDay, setSelectedDay] = useState("mon");
-  const [extraAbsent, setExtraAbsent] = useState([]);
-  const [people, setPeople] = useState(() => readStorage("dailyOpsPeople", defaultPeople));
-  const [regularOff, setRegularOff] = useState(() => readStorage("dailyOpsRegularOff", defaultRegularOff));
-  const [rolePriorities, setRolePriorities] = useState(() => readStorage("dailyOpsRolePriorities", defaultRolePriorities));
-  const [showScheduleEditor, setShowScheduleEditor] = useState(false);
-  const [showUserSettings, setShowUserSettings] = useState(false);
-  const [showTeamSettings, setShowTeamSettings] = useState(false);
-  const [showCodePanel, setShowCodePanel] = useState(false);
-  const [developerNotes, setDeveloperNotes] = useState(() => readStorage("dailyOpsDeveloperNotes", ""));
-  const [newEmployee, setNewEmployee] = useState("");
-  const [adminLoginName, setAdminLoginName] = useState("老板");
-  const [adminLoginPin, setAdminLoginPin] = useState("");
-  const [adminUser, setAdminUser] = useState(() => typeof window === "undefined" ? "" : localStorage.getItem("dailyOpsAdminUser") || "");
-  const [selectedPerson, setSelectedPerson] = useState(() => typeof window === "undefined" ? "" : localStorage.getItem("dailyOpsSelectedPerson") || "");
-  const [now, setNow] = useState(new Date());
-  const [draggingRole, setDraggingRole] = useState(null);
-  const [draggingPerson, setDraggingPerson] = useState(null);
-  const [dragOverRole, setDragOverRole] = useState(null);
-  const [dragOverPerson, setDragOverPerson] = useState(null);
-  const isAdmin = adminPeople.includes(adminUser);
-
-  useEffect(() => { const timer = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(timer); }, []);
-  useEffect(() => saveStorage("dailyOpsPeople", people), [people]);
-  useEffect(() => saveStorage("dailyOpsRegularOff", regularOff), [regularOff]);
-  useEffect(() => saveStorage("dailyOpsRolePriorities", rolePriorities), [rolePriorities]);
-  useEffect(() => saveStorage("dailyOpsDeveloperNotes", developerNotes), [developerNotes]);
-  useEffect(() => { if (typeof window !== "undefined") selectedPerson ? localStorage.setItem("dailyOpsSelectedPerson", selectedPerson) : localStorage.removeItem("dailyOpsSelectedPerson"); }, [selectedPerson]);
-  useEffect(() => { if (typeof window !== "undefined") adminUser ? localStorage.setItem("dailyOpsAdminUser", adminUser) : localStorage.removeItem("dailyOpsAdminUser"); }, [adminUser]);
-
-  const malaysiaNow = useMemo(() => formatMalaysiaDateTime(now), [now]);
-  const defaultOff = regularOff[selectedDay] || [];
-  const absentSet = useMemo(() => new Set([...defaultOff, ...extraAbsent].filter((p) => people.includes(p))), [defaultOff, extraAbsent, people]);
-  const allPresent = absentSet.size === 0;
-  const assignments = useMemo(() => resolveAssignments(absentSet, allPresent, rolePriorities), [absentSet, allPresent, rolePriorities]);
-
-  useEffect(() => {
-    const malaysia = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit", hour12: false }).format(now);
-    const reminderMap = {
-      "09:00": { key: "billing", title: "开单检查提醒", body: "请检查开单进度。" }, "10:00": { key: "billing", title: "开单检查提醒", body: "请检查开单进度。" }, "11:00": { key: "billing", title: "开单检查提醒", body: "请检查开单进度。" }, "12:00": { key: "billing", title: "开单检查提醒", body: "请检查开单进度。" }, "13:00": { key: "billing", title: "开单检查提醒", body: "请检查开单进度。" }, "14:00": { key: "billing", title: "开单最后检查", body: "2PM 最后一次白天检查。" }, "18:00": { key: "billing", title: "开单最终检查", body: "请进行 6PM 最后检查。" },
-      "09:05": { key: "instant", title: "Instant 包货提醒", body: "请检查 Instant 包货进度。" }, "10:05": { key: "instant", title: "Instant 包货提醒", body: "请检查 Instant 包货进度。" }, "11:05": { key: "instant", title: "Instant 包货提醒", body: "请检查 Instant 包货进度。" }, "12:05": { key: "instant", title: "Instant 包货提醒", body: "请检查 Instant 包货进度。" }, "13:05": { key: "instant", title: "Instant 包货提醒", body: "请检查 Instant 包货进度。" }, "14:05": { key: "instant", title: "Instant 包货最后检查", body: "2PM 后停止定时检查。" }, "18:05": { key: "instant", title: "Instant 包货最终检查", body: "请进行 6PM 最后检查。" },
-      "11:30": { key: "delivery", title: "送货提醒", body: "请准备中午送货。" }, "18:30": { key: "delivery", title: "送货提醒", body: "请准备晚上送货。" },
+    const defaultSettings = {
+      people:["YN","PL","老板","小宝","MX","JX","Annie","Vivi","Calvin"],
+      adminPeople:["老板","MX","Calvin"],adminPin:"8888",developerNotes:"",
+      regularOff:{mon:[],tue:["YN"],wed:["PL"],thu:["JX"],fri:["Vivi"],sat:[],sun:["Annie","Calvin"]},
+      extraAbsentByDate:{},
+      rolePriorities:{billing:["YN","PL","老板","小宝"],instant:["MX","JX","PL","Vivi","小宝","Annie"],normal:["JX","MX","PL","Vivi","小宝","Annie"],packingVideo:["MX","Calvin","老板"],packingList:["Calvin","MX","老板"],delivery:["Calvin","老板"]},
+      reminderTimes:{billing:["09:00","10:00","11:00","12:00","13:00","14:00","18:00"],instant:["09:05","10:05","11:05","12:05","13:05","14:05","18:05"],delivery:["11:30","18:30"]}
     };
-    const currentReminder = reminderMap[malaysia];
-    if (!currentReminder || !selectedPerson) return;
-    const assignedPerson = assignments[currentReminder.key]?.main;
-    const triggerKey = `${malaysia}-${currentReminder.key}-${selectedPerson}`;
-    if (assignedPerson === selectedPerson && !triggeredReminders.includes(triggerKey)) {
-      triggerBrowserNotification(currentReminder.title, `${currentReminder.body} 当前负责人：${selectedPerson}`);
-      setTriggeredReminders((prev) => [...prev, triggerKey]);
-    }
-  }, [now, triggeredReminders, selectedPerson, assignments]);
-
-  const adminLogin = () => { if (adminPeople.includes(adminLoginName) && adminLoginPin === adminPin) { setAdminUser(adminLoginName); setAdminLoginPin(""); } };
-  const adminLogout = () => { setAdminUser(""); setShowTeamSettings(false); setShowScheduleEditor(false); setShowCodePanel(false); };
-  const addEmployee = () => { if (!isAdmin) return; const name = newEmployee.trim(); if (!name || people.includes(name)) return; setPeople((prev) => [...prev, name]); setNewEmployee(""); };
-  const deleteEmployee = (name) => { if (!isAdmin) return; setPeople((prev) => prev.filter((p) => p !== name)); setExtraAbsent((prev) => prev.filter((p) => p !== name)); if (selectedPerson === name) setSelectedPerson(""); setRegularOff((prev) => Object.fromEntries(days.map((d) => [d.key, (prev[d.key] || []).filter((p) => p !== name)]))); setRolePriorities((prev) => Object.fromEntries(Object.keys(roleMeta).map((k) => [k, (prev[k] || []).filter((p) => p !== name)]))); };
-  const addToRole = (roleKey, person) => { if (!isAdmin) return; setRolePriorities((prev) => prev[roleKey]?.includes(person) ? prev : { ...prev, [roleKey]: [...(prev[roleKey] || []), person] }); };
-  const removeFromRole = (roleKey, person) => { if (!isAdmin) return; setRolePriorities((prev) => ({ ...prev, [roleKey]: (prev[roleKey] || []).filter((p) => p !== person) })); };
-  const moveRolePerson = (roleKey, index, direction) => { if (!isAdmin) return; setRolePriorities((prev) => { const list = [...(prev[roleKey] || [])]; const nextIndex = index + direction; if (nextIndex < 0 || nextIndex >= list.length) return prev; [list[index], list[nextIndex]] = [list[nextIndex], list[index]]; return { ...prev, [roleKey]: list }; }); };
-  const reorderRolePerson = (roleKey, fromPerson, toPerson) => {
-    if (!isAdmin || !fromPerson || !toPerson || fromPerson === toPerson) return;
-    setRolePriorities((prev) => {
-      const list = [...(prev[roleKey] || [])];
-      const fromIndex = list.indexOf(fromPerson);
-      const toIndex = list.indexOf(toPerson);
-      if (fromIndex < 0 || toIndex < 0) return prev;
-      const [moved] = list.splice(fromIndex, 1);
-      list.splice(toIndex, 0, moved);
-      return { ...prev, [roleKey]: list };
-    });
-  };
-  const clearDragState = () => {
-    setDraggingRole(null);
-    setDraggingPerson(null);
-    setDragOverRole(null);
-    setDragOverPerson(null);
-  };
-  const toggleAbsent = (person) => { if (!isAdmin || defaultOff.includes(person)) return; setExtraAbsent((prev) => prev.includes(person) ? prev.filter((p) => p !== person) : [...prev, person]); };
-  const toggleRegularOff = (dayKey, person) => { if (!isAdmin) return; setRegularOff((prev) => { const current = prev[dayKey] || []; const next = current.includes(person) ? current.filter((p) => p !== person) : [...current, person]; return { ...prev, [dayKey]: next }; }); setExtraAbsent([]); };
-  const changeDay = (day) => { setSelectedDay(day); setExtraAbsent([]); };
-
-  return (
-    <div className="min-h-screen bg-neutral-50 p-4 md:p-8 text-neutral-900">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div><h1 className="text-3xl md:text-4xl font-bold tracking-tight">Daily Ops 每日负责人安排</h1><p className="text-neutral-500 mt-2">选择日期，调整固定休息或勾选临时没来，系统会自动显示当天负责人。</p>{allPresent && <div className="mt-3 inline-flex rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-medium">全部人员到齐：小宝自动排最后</div>}</div>
-          <div className="flex flex-col gap-3 min-w-[280px]">
-            <Card className="rounded-2xl shadow-sm border bg-white"><CardContent className="p-4"><div className="flex items-center gap-2 text-sm text-neutral-500 mb-2"><CalendarDays className="w-4 h-4" /> 今日马来西亚日期</div><div className="text-xl font-bold">{malaysiaNow.date} · {malaysiaNow.weekday}</div><div className="flex items-center gap-2 mt-2 text-2xl font-black tracking-wide"><Clock3 className="w-5 h-5" /> {malaysiaNow.time}</div></CardContent></Card>
-            <Card className="rounded-2xl shadow-sm border bg-white"><CardContent className="p-4"><div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2 text-sm text-neutral-500 mb-1"><UserRound className="w-4 h-4" /> 我的身份</div><div className="text-lg font-bold">{selectedPerson || "未选择"}</div><div className="text-xs text-neutral-500 mt-1">只会响你的岗位闹钟</div></div><ActiveButton active={showUserSettings} onClick={() => setShowUserSettings((v) => !v)}><Settings2 className="w-4 h-4 mr-2" /> 设置</ActiveButton></div></CardContent></Card>
-            <Card className={`rounded-2xl shadow-sm border ${isAdmin ? "bg-green-50 border-green-200" : "bg-white"}`}><CardContent className="p-4"><div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2 text-sm text-neutral-500 mb-1"><ShieldCheck className="w-4 h-4" /> 权限模式</div><div className="text-lg font-bold">{isAdmin ? `Admin：${adminUser}` : "只读模式"}</div><div className="text-xs text-neutral-500 mt-1">{isAdmin ? "可以控制设置" : "只能查看，不能修改"}</div></div>{isAdmin && <Button variant="outline" className="rounded-xl bg-white" onClick={adminLogout}>退出</Button>}</div></CardContent></Card>
-          </div>
-        </div>
-
-        {!isAdmin && <Card className="rounded-2xl shadow-sm mb-6 border-amber-200 bg-amber-50"><CardContent className="p-4"><div className="font-semibold text-amber-900">只读保护已开启</div><div className="text-sm text-amber-800 mt-1">外流给别人时，他们只能看安排；只有老板、MX、Calvin 输入 Admin PIN 后可以控制。</div><div className="grid md:grid-cols-3 gap-2 mt-3"><select value={adminLoginName} onChange={(e) => setAdminLoginName(e.target.value)} className="rounded-xl border px-3 py-2 bg-white">{adminPeople.map((p) => <option key={p} value={p}>{p}</option>)}</select><input value={adminLoginPin} onChange={(e) => setAdminLoginPin(e.target.value)} type="password" placeholder="Admin PIN" className="rounded-xl border px-3 py-2" /><Button className="rounded-xl" onClick={adminLogin}>进入 Admin</Button></div></CardContent></Card>}
-
-        {showUserSettings && <Card className="rounded-2xl shadow-sm mb-6 border-blue-100 bg-blue-50"><CardContent className="p-5"><div className="flex items-center justify-between mb-4 gap-3"><div><div className="font-semibold">个人提醒设置</div><div className="text-xs text-neutral-600 mt-1">请选择自己是谁，系统只会在你是该岗位负责人时响铃。</div></div><Button variant="outline" className="rounded-xl bg-white" onClick={() => setSelectedPerson("")}>清除身份</Button></div><div className="grid grid-cols-2 md:grid-cols-5 gap-2">{people.map((p) => <button key={`identity-${p}`} onClick={() => setSelectedPerson(p)} className={`rounded-xl border p-3 text-left transition ${selectedPerson === p ? "bg-neutral-900 text-white ring-2 ring-neutral-300" : "bg-white hover:bg-neutral-50"}`}><div className="font-semibold">{p}</div><div className={`text-xs mt-1 ${selectedPerson === p ? "text-neutral-300" : "text-neutral-500"}`}>{selectedPerson === p ? "已选择" : "选择我"}</div></button>)}</div></CardContent></Card>}
-
-        <Card className="rounded-2xl shadow-sm mb-6"><CardContent className="p-5"><div className="text-sm font-semibold mb-3">选择星期</div><div className="grid grid-cols-2 md:grid-cols-7 gap-2">{days.map((d) => <ActiveButton key={d.key} active={selectedDay === d.key} onClick={() => changeDay(d.key)} className="h-11">{d.label}</ActiveButton>)}</div></CardContent></Card>
-
-        <Card className="rounded-2xl shadow-sm mb-6"><CardContent className="p-5"><div className="flex items-center justify-between gap-4 mb-3"><div><div className="text-sm font-semibold">当天没来 / 休息人员</div><div className="text-xs text-neutral-500 mt-1">{isAdmin ? "灰色 = 当天固定休息；可点击其他人设置临时没来。" : "只读模式：无法修改人员出勤。"}</div></div><div className="flex gap-2 flex-wrap justify-end"><ActiveButton active={showTeamSettings} disabled={!isAdmin} onClick={() => setShowTeamSettings((v) => !v)}><Users className="w-4 h-4 mr-2" /> 员工/岗位设置</ActiveButton><ActiveButton active={showScheduleEditor} disabled={!isAdmin} onClick={() => setShowScheduleEditor((v) => !v)}><Settings2 className="w-4 h-4 mr-2" /> 修改固定休息</ActiveButton><ActiveButton active={showCodePanel} disabled={!isAdmin} onClick={() => setShowCodePanel((v) => !v)}><Code2 className="w-4 h-4 mr-2" /> 代码/开发记录</ActiveButton><Button variant="outline" className="rounded-xl" disabled={!isAdmin} onClick={() => setExtraAbsent([])}>清除临时没来</Button></div></div><div className="grid grid-cols-2 md:grid-cols-5 gap-2">{people.map((p) => { const isDefault = defaultOff.includes(p); const isAbsent = absentSet.has(p); return <button key={p} disabled={!isAdmin || isDefault} onClick={() => toggleAbsent(p)} className={`flex items-center gap-2 rounded-xl border p-3 text-left transition ${isDefault ? "bg-neutral-200 text-neutral-500 cursor-not-allowed" : isAbsent ? "bg-red-50 border-red-300 ring-2 ring-red-100" : isAdmin ? "bg-white hover:bg-neutral-50" : "bg-white opacity-75 cursor-not-allowed"}`}>{isAbsent ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}<div><div className="font-semibold">{p}</div><div className="text-xs text-neutral-500">{isDefault ? "固定休息" : isAbsent ? "临时没来" : "有来"}</div></div></button>; })}</div></CardContent></Card>
-
-        {showTeamSettings && isAdmin && <Card className="rounded-2xl shadow-sm mb-6 border-purple-100 bg-purple-50"><CardContent className="p-5"><div className="flex items-center justify-between gap-3 mb-4"><div><div className="font-semibold">员工 / 岗位优先权设置</div><div className="text-xs text-neutral-600 mt-1">可以新增/删除员工，也可以把员工加入岗位、移除岗位、调整优先顺序。可拖拽员工一次移动多格。</div></div><Button variant="outline" className="rounded-xl bg-white" onClick={() => { setPeople(defaultPeople); setRegularOff(defaultRegularOff); setRolePriorities(defaultRolePriorities); setSelectedPerson(""); setExtraAbsent([]); }}><RotateCcw className="w-4 h-4 mr-2" /> 恢复默认</Button></div><div className="rounded-xl border bg-white p-4 mb-4"><div className="font-semibold mb-3">员工名单</div><div className="flex gap-2 mb-3"><input value={newEmployee} onChange={(e) => setNewEmployee(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addEmployee(); }} placeholder="输入员工名字" className="flex-1 rounded-xl border px-3 py-2 outline-none" /><Button className="rounded-xl" onClick={addEmployee}><Plus className="w-4 h-4 mr-2" /> 添加</Button></div><div className="grid grid-cols-2 md:grid-cols-5 gap-2">{people.map((p) => <div key={`staff-${p}`} className="flex items-center justify-between rounded-xl border px-3 py-2"><span className="font-medium">{p}</span><button onClick={() => deleteEmployee(p)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4" /></button></div>)}</div></div><div className="grid md:grid-cols-2 gap-4">{Object.keys(roleMeta).map((roleKey) => { const role = roleMeta[roleKey]; const assigned = rolePriorities[roleKey] || []; const availableToAdd = people.filter((p) => !assigned.includes(p)); return <div key={`role-editor-${roleKey}`} className="rounded-xl border bg-white p-4"><div className="font-semibold mb-3">{role.title}</div><div className="space-y-2 mb-3">{assigned.length > 0 ? assigned.map((p, i) => <div
-                            key={`${roleKey}-${p}`}
-                            draggable
-                            onDragStart={(e) => { setDraggingRole(roleKey); setDraggingPerson(p); e.dataTransfer.effectAllowed = "move"; }}
-                            onDragOver={(e) => { e.preventDefault(); setDragOverRole(roleKey); setDragOverPerson(p); }}
-                            onDrop={(e) => { e.preventDefault(); reorderRolePerson(roleKey, draggingPerson, p); clearDragState(); }}
-                            onDragEnd={clearDragState}
-                            className={`flex items-center justify-between rounded-lg border px-3 py-2 transition cursor-grab active:cursor-grabbing ${draggingRole === roleKey && draggingPerson === p ? "opacity-50 bg-neutral-100" : ""} ${dragOverRole === roleKey && dragOverPerson === p && draggingPerson !== p ? "ring-2 ring-blue-300 bg-blue-50" : ""}`}
-                          >
-                            <span className="font-medium flex items-center gap-2"><GripVertical className="w-4 h-4 text-neutral-400" />{i + 1}. {p}</span>
-                            <div className="flex gap-1"><button onClick={() => moveRolePerson(roleKey, i, -1)} className="rounded-md border p-1 disabled:opacity-30" disabled={i === 0}><ArrowUp className="w-4 h-4" /></button><button onClick={() => moveRolePerson(roleKey, i, 1)} className="rounded-md border p-1 disabled:opacity-30" disabled={i === assigned.length - 1}><ArrowDown className="w-4 h-4" /></button><button onClick={() => removeFromRole(roleKey, p)} className="rounded-md border p-1 text-red-600"><Trash2 className="w-4 h-4" /></button></div>
-                          </div>) : <div className="text-sm text-red-600">此岗位还没有员工。</div>}</div><div className="flex flex-wrap gap-2">{availableToAdd.map((p) => <Button key={`add-${roleKey}-${p}`} variant="outline" size="sm" className="rounded-lg bg-white" onClick={() => addToRole(roleKey, p)}><Plus className="w-3 h-3 mr-1" /> {p}</Button>)}</div></div>; })}</div></CardContent></Card>}
-
-        {showCodePanel && isAdmin && <Card className="rounded-2xl shadow-sm mb-6 border-slate-200 bg-slate-50"><CardContent className="p-5"><div className="flex items-center justify-between gap-3 mb-4"><div><div className="font-semibold flex items-center gap-2"><Code2 className="w-4 h-4" /> 代码 / 开发记录</div><div className="text-xs text-neutral-600 mt-1">这里可以先记录要修改的代码、规则或需求。真正上线后建议连接 GitHub + Vercel，由 Admin 提交后自动部署。</div></div><Button variant="outline" className="rounded-xl bg-white" onClick={() => navigator.clipboard?.writeText(developerNotes || "")}><Copy className="w-4 h-4 mr-2" /> 复制</Button></div><textarea value={developerNotes} onChange={(e) => setDeveloperNotes(e.target.value)} placeholder="例如：
-1. 想新增一个岗位：客服检查
-2. 想修改提醒时间：开单改成 10AM / 12PM / 6PM
-3. 这里也可以贴代码片段，但不会直接执行，避免安全风险。" className="w-full min-h-[220px] rounded-xl border bg-white p-4 font-mono text-sm outline-none focus:ring-2 focus:ring-neutral-300" /><div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">安全提醒：不建议让网页直接执行用户输入的代码，否则外流后别人可能植入恶意代码。正式版本应通过 GitHub / Vercel / 后端权限来修改代码。</div></CardContent></Card>}
-
-        {showScheduleEditor && isAdmin && <Card className="rounded-2xl shadow-sm mb-6 border-dashed"><CardContent className="p-5"><div className="flex items-center justify-between mb-4"><div><div className="font-semibold">固定休息设置</div><div className="text-xs text-neutral-500 mt-1">可以更改每一天固定休息人员。</div></div><Button variant="outline" className="rounded-xl" onClick={() => { setRegularOff(defaultRegularOff); setExtraAbsent([]); }}><RotateCcw className="w-4 h-4 mr-2" /> 恢复默认</Button></div><div className="space-y-4">{days.map((d) => <div key={d.key} className="rounded-xl border bg-white p-3"><div className="font-semibold mb-2">{d.label}</div><div className="grid grid-cols-3 md:grid-cols-9 gap-2">{people.map((p) => { const checked = (regularOff[d.key] || []).includes(p); return <button key={`${d.key}-${p}`} onClick={() => toggleRegularOff(d.key, p)} className={`rounded-lg border px-2 py-2 text-sm transition ${checked ? "bg-neutral-900 text-white ring-2 ring-neutral-300" : "bg-white hover:bg-neutral-50"}`}>{p}</button>; })}</div></div>)}</div></CardContent></Card>}
-
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{Object.keys(roleMeta).map((roleKey) => <RoleCard key={roleKey} roleKey={roleKey} assignment={assignments[roleKey]} selectedPerson={selectedPerson} />)}</div>
-      </div>
-    </div>
-  );
-}
+    let state = { tab:'today', selectedDay:'mon', settings: structuredClone(defaultSettings), selectedPerson: localStorage.getItem('turboSelectedPerson')||'', adminUser: localStorage.getItem('turboAdminUser')||'', adminLoginName:'老板', adminLoginPin:'', newEmployee:'', newReminder:{role:'billing',time:''}, now:new Date(), loading:false };
+    let sb = null;
+    const app = document.getElementById('app');
+    const statusEl = document.getElementById('status');
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const clone = o => JSON.parse(JSON.stringify(o));
+    function setStatus(msg,type=''){ statusEl.className = 'notice '+type; statusEl.textContent = msg; }
+    function mergeSettings(payload){ state.settings = {...clone(defaultSettings), ...(payload||{})}; state.settings.regularOff = {...defaultSettings.regularOff, ...(payload?.regularOff||{})}; state.settings.rolePriorities = {...defaultSettings.rolePriorities, ...(payload?.rolePriorities||{})}; state.settings.extraAbsentByDate = {...(payload?.extraAbsentByDate||{})}; state.settings.reminderTimes = {...defaultSettings.reminderTimes, ...(payload?.reminderTimes||{})}; }
+    function todayParts(){ const parts = new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit',weekday:'long',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(new Date()); const g=t=>parts.find(p=>p.type===t)?.value||''; const key = `${g('year')}-${g('month')}-${g('day')}`; const jsDay = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kuala_Lumpur'})).getDay(); const dayKey = ['sun','mon','tue','wed','thu','fri','sat'][jsDay]; return {date:key,weekday:g('weekday'),time:`${g('hour')}:${g('minute')}:${g('second')}`,dayKey}; }
+    function moveToLast(list, person){ return list.includes(person) ? [...list.filter(p=>p!==person),person] : list; }
+    function priority(role, absent, allPresent){ let list=[...(state.settings.rolePriorities?.[role]||[])]; if((role==='instant'||role==='normal')&&absent.has('YN')&&list.includes('PL')){ list=list.filter(p=>p!=='PL'); const i=list.indexOf('Annie'); i>=0?list.splice(i,0,'PL'):list.push('PL'); } if(allPresent) list=moveToLast(list,'小宝'); return list.filter(p=>!absent.has(p)); }
+    function assignments(){ const s=state.settings, def=s.regularOff?.[state.selectedDay]||[], ex=s.extraAbsentByDate?.[todayParts().date]||[]; const absent=new Set([...def,...ex].filter(p=>s.people.includes(p))); const all=absent.size===0; const out={}; for(const k of Object.keys(roleMeta)){ const a=priority(k,absent,all); out[k]={available:a,main:a[0]||'无人可安排'}; } if(out.packingVideo.main && out.packingList.available[0]===out.packingVideo.main){ out.packingList.available=out.packingList.available.filter(p=>p!==out.packingVideo.main); out.packingList.main=out.packingList.available[0]||'无人可安排'; out.packingList.warn=true; } return {out, absent, def, ex, all}; }
+    async function init(){ try{ if(!window.supabase) throw new Error('Supabase CDN 没有载入，请检查网络。'); sb = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); await load(true); sb.channel('ops_settings_web').on('postgres_changes',{event:'*',schema:'public',table:TABLE}, payload=>{ if(payload.new?.payload){ mergeSettings(payload.new.payload); render(); setStatus('已实时同步最新资料','ok'); }}).subscribe(); setInterval(()=>load(false),3000); setInterval(()=>{ state.now=new Date(); render(false); },1000); }catch(e){ console.error(e); setStatus('连接失败：'+e.message,'error'); render(); } }
+    async function load(show=true){ if(!sb) return; try{ const {data,error}=await sb.from(TABLE).select('payload').eq('id',ID).maybeSingle(); if(error) throw error; if(!data){ await sb.from(TABLE).upsert({id:ID,payload:defaultSettings},{onConflict:'id'}); mergeSettings(defaultSettings); } else mergeSettings(data.payload); if(show) setStatus('已连接云端，所有手机使用同一份资料','ok'); render(); }catch(e){ console.error(e); setStatus('读取失败：'+e.message,'error'); } }
+    async function savePatch(patch){ if(!sb){ alert('Supabase 未连接'); return; } state.loading=true; render(); try{ const {data:latest,error:loadError}=await sb.from(TABLE).select('payload').eq('id',ID).maybeSingle(); if(loadError) throw loadError; const latestPayload=latest?.payload||{}; let merged={...clone(defaultSettings),...latestPayload,...patch}; if(patch.extraAbsentByDate) merged.extraAbsentByDate={...(latestPayload.extraAbsentByDate||{}),...patch.extraAbsentByDate}; if(patch.regularOff) merged.regularOff={...(latestPayload.regularOff||{}),...patch.regularOff}; if(patch.rolePriorities) merged.rolePriorities={...(latestPayload.rolePriorities||{}),...patch.rolePriorities}; if(patch.reminderTimes) merged.reminderTimes={...(latestPayload.reminderTimes||{}),...patch.reminderTimes}; const {data,error}=await sb.from(TABLE).upsert({id:ID,payload:merged},{onConflict:'id'}).select('payload').single(); if(error) throw error; mergeSettings(data?.payload||merged); setStatus('保存成功，正在同步到所有手机','ok'); }catch(e){ alert('保存失败：'+e.message); setStatus('保存失败：'+e.message,'error'); } finally{ state.loading=false; render(); } }
+    function isAdmin(){ return state.settings.adminPeople.includes(state.adminUser); }
+    function setTab(t){ state.tab=t; document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t)); render(); }
+    document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+    function render(doHtml=true){ if(!doHtml){} const now=todayParts(); const {out,absent,def,ex,all}=assignments(); if(state.selectedDay==='mon' && now.dayKey && !state._daySet){ state.selectedDay=now.dayKey; state._daySet=true; }
+      if(state.tab==='today') renderToday(now,out,absent,def,ex,all); else if(state.tab==='me') renderMe(); else renderAdmin(now); }
+    function renderToday(now,out,absent,def,ex,all){ app.innerHTML=`<h1 class="title">Daily Ops 每日负责人安排</h1><div class="sub">实时同步 · iOS / Android 通用 · Admin 可修改规则</div><div class="card"><div class="label">今日马来西亚日期</div><div class="big">${now.date} · ${now.weekday}</div><div class="big" style="margin-top:12px">${now.time}</div></div><div class="card"><div class="label">我的身份</div><div class="big">${esc(state.selectedPerson||'未选择')}</div><div class="muted">${isAdmin()?'Admin 模式':'员工 / 只读模式'}</div></div><div class="row">${days.map(d=>`<button class="day ${state.selectedDay===d.key?'active':''}" onclick="state.selectedDay='${d.key}';render()">${d.label}</button>`).join('')}</div>${all?'<div class="notice ok">全部人员到齐：小宝自动排最后</div>':''}<div class="section">当天没来 / 休息人员</div><div class="row">${state.settings.people.map(p=>`<span class="pill ${def.includes(p)?'fixed':ex.includes(p)?'absent':''}">${esc(p)} · ${def.includes(p)?'固定休息':ex.includes(p)?'临时没来':'有来'}</span>`).join('')}</div><div class="section">今日岗位</div><div class="roleGrid">${Object.keys(roleMeta).map(k=>roleCard(k,out[k])).join('')}</div>`; }
+    function roleCard(k,a){ const rm=roleMeta[k]; const active=state.selectedPerson&&a.main===state.selectedPerson; return `<div class="card" style="${active?'border-color:#22c55e;box-shadow:0 0 0 2px #86efac':''}"><div class="label">负责岗位</div><div class="roleTitle">${rm.title}</div>${rm.reminder?`<div class="reminder">${rm.reminder} ${active?'当前岗位属于你，到点会提醒。':'若不是你的岗位，到点不会响。'}</div>`:''}<div class="mainPerson"><div class="label" style="color:#ccc">当天负责人</div><div class="name">${esc(a.main)}</div></div><div class="label">可用优先顺序</div>${a.available.map((p,i)=>`<div class="listItem"><b>${i+1}. ${esc(p)}</b>${i===0?'<span class="badge">负责人</span>':''}</div>`).join('')||'<div class="muted">没有可用人员，请手动安排。</div>'}</div>`; }
+    function renderMe(){ app.innerHTML=`<h1 class="title">我的身份</h1><div class="sub">选择自己是谁，提醒只会针对你的岗位。</div><div class="row">${state.settings.people.map(p=>`<button class="pill ${state.selectedPerson===p?'active':''}" style="${state.selectedPerson===p?'background:#111;color:#fff':''}" onclick="state.selectedPerson='${esc(p)}';localStorage.setItem('turboSelectedPerson','${esc(p)}');renderMe()">${esc(p)}</button>`).join('')}</div><div style="margin-top:16px"><button class="btn light" onclick="state.selectedPerson='';localStorage.removeItem('turboSelectedPerson');renderMe()">清除身份</button></div>`; }
+    function renderAdmin(now){ if(!isAdmin()){ app.innerHTML=`<h1 class="title">Admin 设置</h1><div class="sub">只有老板、MX、Calvin 可以修改。</div><div class="card"><div class="grid2"><select class="input" id="adminName">${state.settings.adminPeople.map(p=>`<option ${state.adminLoginName===p?'selected':''}>${esc(p)}</option>`).join('')}</select><input class="input" id="adminPin" type="password" placeholder="Admin PIN" value="${esc(state.adminLoginPin)}"></div><button class="btn" style="margin-top:12px" onclick="loginAdmin()">进入 Admin</button></div>`; return; }
+      const s=state.settings, ex=s.extraAbsentByDate?.[now.date]||[]; app.innerHTML=`<h1 class="title">Admin 设置</h1><div class="sub">当前 Admin：${esc(state.adminUser)}</div><button class="btn danger" onclick="logoutAdmin()">退出 Admin</button><div class="section">今天临时没来</div><div class="row">${s.people.map(p=>`<button class="pill ${ex.includes(p)?'absent':''}" onclick="toggleExtra('${esc(p)}')">${esc(p)}${ex.includes(p)?' · 临时没来':''}</button>`).join('')}</div><div class="section">员工名单</div><div class="adminBox"><div class="grid2"><input id="newEmp" class="input" placeholder="输入员工名字"><button class="btn" onclick="addEmployee()">添加</button></div>${s.people.map(p=>`<div class="listItem"><b>${esc(p)}</b><button class="btn danger" onclick="deleteEmployee('${esc(p)}')">删除</button></div>`).join('')}</div><div class="section">固定休息设置</div>${days.map(d=>`<div class="adminBox"><h3>${d.label}</h3><div class="row">${s.people.map(p=>`<button class="pill ${(s.regularOff?.[d.key]||[]).includes(p)?'active':''}" style="${(s.regularOff?.[d.key]||[]).includes(p)?'background:#111;color:#fff':''}" onclick="toggleRegular('${d.key}','${esc(p)}')">${esc(p)}</button>`).join('')}</div></div>`).join('')}<div class="section">岗位优先顺序</div>${Object.keys(roleMeta).map(k=>priorityEditor(k)).join('')}<div class="section">提醒时间</div><div class="adminBox"><div class="grid2"><select class="input" id="remRole">${Object.keys(roleMeta).map(k=>`<option value="${k}">${roleMeta[k].title}</option>`).join('')}</select><input class="input" id="remTime" placeholder="例如 09:00"></div><button class="btn" style="margin-top:10px" onclick="addReminder()">添加提醒时间</button>${Object.entries(s.reminderTimes||{}).map(([k,times])=>`<h3>${roleMeta[k]?.title||k}</h3><div class="row">${(times||[]).map(t=>`<button class="pill" onclick="removeReminder('${k}','${t}')">${t} ×</button>`).join('')}</div>`).join('')}</div><div class="section">开发备注 / 规则修改需求</div><textarea class="input" rows="5" onchange="savePatch({developerNotes:this.value})">${esc(s.developerNotes||'')}</textarea>`; }
+    function priorityEditor(k){ const list=state.settings.rolePriorities?.[k]||[]; const canAdd=state.settings.people.filter(p=>!list.includes(p)); return `<div class="prioCard"><h3>${roleMeta[k].title}</h3>${list.map((p,i)=>`<div class="priorityRow"><span>${i+1}.</span><b>${esc(p)}</b><button class="btn light" onclick="movePrio('${k}',${i},-1)">↑</button><button class="btn light" onclick="movePrio('${k}',${i},1)">↓</button><button class="btn danger" onclick="removePrio('${k}','${esc(p)}')">删</button></div>`).join('')}<div class="row" style="margin-top:10px">${canAdd.map(p=>`<button class="smallBtn" onclick="addPrio('${k}','${esc(p)}')">+ ${esc(p)}</button>`).join('')}</div></div>`; }
+    window.loginAdmin=()=>{ state.adminLoginName=document.getElementById('adminName').value; state.adminLoginPin=document.getElementById('adminPin').value; if(state.settings.adminPeople.includes(state.adminLoginName)&&state.adminLoginPin===state.settings.adminPin){ state.adminUser=state.adminLoginName; localStorage.setItem('turboAdminUser',state.adminUser); renderAdmin(todayParts()); } else alert('Admin 或 PIN 不正确'); };
+    window.logoutAdmin=()=>{ state.adminUser=''; localStorage.removeItem('turboAdminUser'); renderAdmin(todayParts()); };
+    window.toggleExtra=(p)=>{ const date=todayParts().date; const cur=state.settings.extraAbsentByDate?.[date]||[]; const next=cur.includes(p)?cur.filter(x=>x!==p):[...cur,p]; savePatch({extraAbsentByDate:{[date]:next}}); };
+    window.addEmployee=()=>{ const v=document.getElementById('newEmp').value.trim(); if(!v||state.settings.people.includes(v)) return; savePatch({people:[...state.settings.people,v]}); };
+    window.deleteEmployee=(p)=>{ if(!confirm('确定删除 '+p+'？')) return; const people=state.settings.people.filter(x=>x!==p); const regularOff={}; for(const d of days) regularOff[d.key]=(state.settings.regularOff?.[d.key]||[]).filter(x=>x!==p); const rolePriorities={}; for(const k of Object.keys(roleMeta)) rolePriorities[k]=(state.settings.rolePriorities?.[k]||[]).filter(x=>x!==p); savePatch({people,regularOff,rolePriorities}); };
+    window.toggleRegular=(d,p)=>{ const cur=state.settings.regularOff?.[d]||[]; const next=cur.includes(p)?cur.filter(x=>x!==p):[...cur,p]; savePatch({regularOff:{[d]:next}}); };
+    window.movePrio=(k,i,dir)=>{ const list=[...(state.settings.rolePriorities?.[k]||[])]; const j=i+dir; if(j<0||j>=list.length)return; [list[i],list[j]]=[list[j],list[i]]; savePatch({rolePriorities:{[k]:list}}); };
+    window.removePrio=(k,p)=>{ savePatch({rolePriorities:{[k]:(state.settings.rolePriorities?.[k]||[]).filter(x=>x!==p)}}); };
+    window.addPrio=(k,p)=>{ savePatch({rolePriorities:{[k]:[...(state.settings.rolePriorities?.[k]||[]),p]}}); };
+    window.addReminder=()=>{ const k=document.getElementById('remRole').value,t=document.getElementById('remTime').value.trim(); if(!/^\d{2}:\d{2}$/.test(t)) return alert('时间格式请写 09:00'); const list=state.settings.reminderTimes?.[k]||[]; if(!list.includes(t)) savePatch({reminderTimes:{[k]:[...list,t].sort()}}); };
+    window.removeReminder=(k,t)=>{ savePatch({reminderTimes:{[k]:(state.settings.reminderTimes?.[k]||[]).filter(x=>x!==t)}}); };
+    init();
+  </script>
+</body>
+</html>
