@@ -3,392 +3,490 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
-  <title>Turbo Daily Ops · Professional v6</title>
+  <title>Turbo Daily Ops</title>
+  <meta name="theme-color" content="#14110b" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root{
-      --bg:#f4f1ea;
-      --bg2:#fbfaf7;
-      --card:rgba(255,255,255,.92);
-      --text:#171717;
-      --muted:#73706a;
-      --line:#e3dccf;
-      --line2:#d5c5a8;
-      --black:#111827;
-      --black2:#1f2937;
-      --gold:#b9892f;
-      --gold2:#e7d2a0;
-      --gold3:#fff7df;
-      --red:#9f1239;
-      --redbg:#fff1f2;
-      --green:#166534;
-      --greenbg:#ecfdf3;
-      --blue:#1d4ed8;
-      --bluebg:#eef4ff;
-      --shadow:0 18px 50px rgba(17,24,39,.08);
-      --shadow2:0 8px 22px rgba(17,24,39,.08);
-      --radius:26px;
+      --bg:#f7f3ea; --panel:#fffdf8; --panel2:#fbf7ee; --text:#171410; --muted:#70675b;
+      --line:#e8dcc8; --gold:#b58a35; --gold2:#d4af62; --dark:#17130d; --green:#126a45; --red:#b23b3b; --amber:#8a5c12;
+      --shadow:0 18px 45px rgba(36,25,10,.09); --radius:22px;
     }
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    body{margin:0;background:
-      radial-gradient(circle at top left,rgba(231,210,160,.45),transparent 38%),
-      linear-gradient(180deg,var(--bg2),var(--bg));color:var(--text);
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
-      -webkit-font-smoothing:antialiased;
-    }
-    button,input,select,textarea{font:inherit}
-    button{cursor:pointer;-webkit-tap-highlight-color:transparent}
-    button:active{transform:scale(.985)}
-    .wrap{max-width:1180px;margin:0 auto;padding:18px 18px 80px}
-    .topbar{position:sticky;top:0;z-index:20;margin:-18px -18px 18px;padding:14px 18px 12px;background:rgba(244,241,234,.88);backdrop-filter:blur(16px);border-bottom:1px solid rgba(213,197,168,.45)}
-    .brandRow{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
-    .brand{display:flex;align-items:center;gap:12px;font-weight:950;letter-spacing:-.03em}
-    .logoMark{width:42px;height:42px;border-radius:16px;background:linear-gradient(135deg,#111827,#2c2f38);display:grid;place-items:center;color:var(--gold2);box-shadow:var(--shadow2);border:1px solid rgba(231,210,160,.32)}
-    .logoMark span{font-size:17px;font-weight:950}
-    .brand small{display:block;color:var(--muted);font-weight:700;letter-spacing:0;margin-top:2px}
-    .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;max-width:1180px;margin-left:auto;margin-right:auto}
-    .tab{border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.75);padding:13px 10px;font-weight:900;color:#4b4b4b;transition:.18s ease;box-shadow:0 1px 0 rgba(255,255,255,.8) inset}
-    .tab:hover{border-color:var(--gold);color:var(--black)}
-    .tab.active{background:linear-gradient(135deg,var(--black),#2b2f39);color:#fff;border-color:#2b2f39;box-shadow:var(--shadow2)}
-    .status{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;white-space:nowrap}
-    .dot{width:9px;height:9px;border-radius:999px;background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.14)}
-    .dot.ok{background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.14)}
-    .dot.err{background:#e11d48;box-shadow:0 0 0 4px rgba(225,29,72,.14)}
-    .title{font-size:42px;line-height:1.05;font-weight:950;letter-spacing:-.06em;margin:30px 0 10px;color:#121212}
-    .sub{color:var(--muted);font-size:17px;margin-bottom:20px;line-height:1.6}
-    .section{font-size:24px;font-weight:950;letter-spacing:-.03em;margin:30px 0 14px;display:flex;align-items:center;gap:10px}
-    .section:before{content:"";width:6px;height:24px;border-radius:999px;background:linear-gradient(var(--gold2),var(--gold))}
-    .card{background:var(--card);border:1px solid rgba(213,197,168,.6);border-radius:var(--radius);padding:22px;margin:14px 0;box-shadow:var(--shadow);overflow:hidden}
-    .card.soft{box-shadow:var(--shadow2)}
-    .label{color:var(--muted);font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
-    .big{font-size:27px;font-weight:950;letter-spacing:-.03em}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"PingFang SC","Microsoft YaHei",sans-serif;background:
+      radial-gradient(circle at top left,rgba(212,175,98,.24),transparent 28%),
+      linear-gradient(180deg,#fbf8f0 0%,var(--bg) 100%); color:var(--text);}
+    button,input,select{font:inherit}
+    button{cursor:pointer;transition:.18s transform,.18s box-shadow,.18s background,.18s border-color}
+    button:active{transform:scale(.98)}
+    .wrap{max-width:1220px;margin:0 auto;padding:18px 14px 42px}
+    .top{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px}
+    @media(min-width:880px){.top{grid-template-columns:1.3fr .7fr}}
+    .hero{background:linear-gradient(135deg,#19130b,#33260f);color:#fff;border-radius:28px;padding:22px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+    .hero:after{content:"";position:absolute;right:-70px;top:-80px;width:220px;height:220px;border:1px solid rgba(212,175,98,.42);border-radius:50%}
+    .eyebrow{color:var(--gold2);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+    h1{margin:8px 0 8px;font-size:30px;line-height:1.08}
+    .sub{color:rgba(255,255,255,.72);line-height:1.5}
+    .statusbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+    .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(212,175,98,.38);background:rgba(255,255,255,.08);border-radius:999px;padding:8px 11px;font-size:13px}
+    .card{background:rgba(255,253,248,.92);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card-pad{padding:18px}
+    .clock{display:grid;gap:10px}
+    .clock .time{font-size:30px;font-weight:900;letter-spacing:.02em}
     .muted{color:var(--muted)}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .between{display:flex;justify-content:space-between;align-items:center;gap:12px}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-    .metricGrid{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:14px}
-    .roleGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:stretch}
-    .roleCard{display:flex;flex-direction:column;min-height:100%}
-    .roleHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
-    .roleTitle{font-size:20px;font-weight:950;letter-spacing:-.025em;line-height:1.2}
-    .reminderBadge{display:inline-flex;align-items:center;gap:6px;background:var(--gold3);color:#795316;border:1px solid #ead59f;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:850;line-height:1.2;text-align:right;max-width:190px;justify-content:flex-end}
-    .personLine{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:12px;background:linear-gradient(135deg,#111827,#222733);color:#fff;border-radius:22px;padding:18px 20px;margin:2px 0 16px;min-height:92px}
-    .personLine .label{color:#cbd5e1;margin:0}
-    .personName{font-size:36px;font-weight:950;letter-spacing:-.04em;line-height:1.05;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .available{margin-top:auto}
-    .listItem{border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:8px 0;background:rgba(255,255,255,.72);display:flex;justify-content:space-between;align-items:center;gap:10px;transition:.16s ease}
-    .listItem:hover{border-color:var(--gold2);box-shadow:0 7px 18px rgba(185,137,47,.08)}
-    .badge{font-size:12px;background:var(--greenbg);color:var(--green);padding:6px 10px;border-radius:999px;font-weight:900;white-space:nowrap}
-    .notice{border-radius:18px;padding:14px 16px;margin:12px 0;background:var(--bluebg);color:#1e3a8a;border:1px solid #c7d8ff;line-height:1.55}
-    .notice.ok{background:var(--greenbg);color:var(--green);border-color:#bbf7d0}.notice.error{background:var(--redbg);color:var(--red);border-color:#fecdd3}.notice.gold{background:var(--gold3);color:#795316;border-color:#ead59f}
-    .btn,.pill,.day,.smallBtn{border:1px solid var(--line);background:rgba(255,255,255,.9);border-radius:999px;padding:12px 17px;font-weight:900;color:#272727;transition:transform .14s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease,color .16s ease;box-shadow:0 1px 0 rgba(255,255,255,.8) inset}
-    .btn:hover,.pill:hover,.day:hover,.smallBtn:hover{border-color:var(--gold);box-shadow:0 10px 22px rgba(185,137,47,.1)}
-    .btn{border-radius:16px;background:linear-gradient(135deg,var(--black),#2b2f39);color:#fff;border-color:#2b2f39;padding:13px 18px}
-    .btn.light{background:#fff;color:#111;border:1px solid var(--line)}.btn.danger{background:#fff1f2;color:#9f1239;border-color:#fecdd3}.btn.green{background:#ecfdf3;color:#166534;border-color:#bbf7d0}.btn.gold{background:linear-gradient(135deg,#7a5314,var(--gold));color:#fff;border-color:#c79841}
-    .pill.absent,.pill.fixed{background:var(--redbg);color:var(--red);border-color:#fecdd3}.pill.active,.day.active,.smallBtn.active{background:linear-gradient(135deg,var(--black),#2b2f39);color:#fff;border-color:#2b2f39}.pill.gold{background:var(--gold3);color:#795316;border-color:#ead59f}
-    .input,select,textarea{width:100%;border:1px solid var(--line);border-radius:17px;padding:14px;background:#fff;outline:none;transition:.16s ease}.input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(185,137,47,.12)}
-    .adminBox{border:1px solid rgba(213,197,168,.65);background:rgba(255,255,255,.84);border-radius:24px;padding:18px;margin:14px 0;box-shadow:var(--shadow2)}
-    .loginPanel{max-width:680px;margin:20px auto 0}
-    .adminChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
-    .adminChoice{border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px 12px;font-weight:900;cursor:pointer;transition:.18s ease}
-    .adminChoice:hover{transform:translateY(-1px);border-color:var(--line2);box-shadow:var(--shadow2)}
-    .adminChoice.active{background:var(--black);color:white;border-color:var(--black);box-shadow:0 8px 22px rgba(17,24,39,.18)}
-    .loginActions{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:10px}
-    @media(max-width:600px){.adminChoices{grid-template-columns:1fr}.loginActions{grid-template-columns:1fr}}
-    .prioGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
-    .prioCard{border:1px solid rgba(213,197,168,.7);border-radius:24px;background:rgba(255,255,255,.86);padding:16px;box-shadow:var(--shadow2)}
-    .prioHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-    .priorityRow{display:grid;grid-template-columns:34px 26px 1fr auto auto auto;gap:8px;align-items:center;border:1px solid transparent;border-top-color:#efe8dc;padding:10px 4px;border-radius:16px;transition:.16s ease;background:transparent}
-    .priorityRow:first-of-type{border-top-color:transparent}.priorityRow[draggable="true"]{cursor:grab}.priorityRow.dragging{opacity:.42;background:var(--gold3);border-color:var(--gold2)}.priorityRow.dropTarget{background:#fff8e7;border-color:var(--gold)}
-    .grip{color:var(--gold);font-size:18px;line-height:1}.rank{font-weight:950;color:var(--muted);text-align:right}.empty{color:var(--muted);padding:14px;border:1px dashed var(--line);border-radius:16px;text-align:center}.divider{height:1px;background:var(--line);margin:16px 0}.hidden{display:none!important}
-    .quickLinks{display:flex;gap:8px;flex-wrap:wrap}.quickLinks code{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 10px;color:#68450f;font-weight:800;font-size:12px;word-break:break-all}
-    @media(max-width:780px){.wrap{padding-left:14px;padding-right:14px}.topbar{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}.title{font-size:32px}.grid2,.grid3,.metricGrid{grid-template-columns:1fr}.roleGrid{grid-template-columns:1fr}.tabs{gap:8px}.tab{font-size:14px;padding:12px 6px}.brand small{display:none}.personName{font-size:31px}.personLine{grid-template-columns:95px 1fr}.roleHeader{align-items:center}.reminderBadge{max-width:155px;font-size:11px;padding:6px 9px}.prioGrid{grid-template-columns:1fr}.priorityRow{grid-template-columns:28px 24px 1fr auto auto auto;gap:5px}.btn,.pill,.day,.smallBtn{padding:11px 13px}.status{display:none}}
+    .grid{display:grid;gap:14px}
+    .grid.roles{grid-template-columns:1fr}
+    @media(min-width:760px){.grid.roles{grid-template-columns:repeat(2,1fr)}}
+    @media(min-width:1120px){.grid.roles{grid-template-columns:repeat(3,1fr)}}
+    .section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 10px}
+    .section-title h2{margin:0;font-size:18px}
+    .btn{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:10px 13px;font-weight:800;color:var(--text)}
+    .btn:hover{box-shadow:0 8px 20px rgba(33,22,8,.08);border-color:#d2bb91}
+    .btn.primary{background:linear-gradient(135deg,#17130d,#322511);color:#fff;border-color:#322511}
+    .btn.gold{background:linear-gradient(135deg,#c99b45,#b38430);color:#fff;border-color:#b38430}
+    .btn.ghost{background:transparent}
+    .btn.danger{color:#a92727;border-color:#edcdcd;background:#fff8f8}
+    .tabs{display:flex;gap:8px;overflow:auto;padding-bottom:5px}
+    .tab{white-space:nowrap;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:10px 13px;font-weight:800}
+    .tab.active{background:#17130d;color:#fff;border-color:#17130d;box-shadow:0 10px 22px rgba(23,19,13,.18)}
+    .people{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+    @media(min-width:700px){.people{grid-template-columns:repeat(5,1fr)}}
+    .person{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:12px;text-align:left;min-height:70px}
+    .person .name{font-weight:900}
+    .person .small{font-size:12px;color:var(--muted);margin-top:5px}
+    .person.absent{background:#fff6f2;border-color:#efc3b6}
+    .person.off{background:#eee6da;color:#766b5b}
+    .person.me{outline:2px solid var(--gold);background:#fffaf0}
+    .role-card{padding:16px;display:grid;gap:13px}
+    .role-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .role-title{font-weight:950;font-size:17px}
+    .reminders{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+    .reminder-chip{font-size:11px;border:1px solid #ead8af;background:#fff7e7;color:#7b5718;border-radius:999px;padding:5px 8px;font-weight:800}
+    .leader{display:grid;grid-template-columns:88px 1fr;align-items:center;background:linear-gradient(135deg,#18130c,#2d2110);color:#fff;border-radius:18px;padding:13px}
+    .leader .label{font-size:12px;color:rgba(255,255,255,.62)}
+    .leader .who{font-size:24px;font-weight:1000;text-align:right}
+    .order{display:grid;gap:7px}
+    .order-row{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:13px;padding:9px 10px;background:#fff}
+    .tag{font-size:11px;border-radius:999px;padding:4px 8px;font-weight:900;background:#eaf7ef;color:#14603f}
+    .notice{border:1px solid #ead8af;background:#fff8e8;color:#755217;border-radius:16px;padding:12px;line-height:1.45}
+    .admin-panel{display:none}
+    body.admin .admin-panel{display:block}
+    .form-grid{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:720px){.form-grid{grid-template-columns:1fr 1fr auto}}
+    input,select{border:1px solid var(--line);background:#fff;border-radius:14px;padding:11px 12px;outline:none;min-height:44px}
+    input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(181,138,53,.13)}
+    .admin-grid{display:grid;gap:14px}
+    @media(min-width:920px){.admin-grid{grid-template-columns:1fr 1fr}}
+    .mini-title{font-weight:950;margin-bottom:10px}
+    .role-editor{border:1px solid var(--line);border-radius:18px;background:#fff;padding:12px;margin-bottom:10px}
+    .drag-row{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:14px;background:#fffdf8;padding:8px;margin-bottom:7px}
+    .drag-row.dragging{opacity:.4}
+    .handle{color:var(--gold);font-weight:900;cursor:grab}
+    .drag-name{flex:1;font-weight:900}
+    .smallbtn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 8px;font-weight:900}
+    .time-list{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+    .time-chip{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:7px 9px;background:#fff}
+    .time-chip b{font-size:13px}
+    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#17130d;color:#fff;padding:12px 15px;border-radius:999px;box-shadow:0 15px 40px rgba(0,0,0,.22);z-index:50;opacity:0;pointer-events:none;transition:.2s}
+    .toast.show{opacity:1;bottom:28px}
+    .hidden{display:none!important}
+    .divider{height:1px;background:var(--line);margin:14px 0}
+    .footer{margin-top:28px;text-align:center;color:var(--muted);font-size:12px}
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="brandRow">
-      <div class="brand"><div class="logoMark"><span>TJ</span></div><div>Turbo Daily Ops<small>专业版 · 实时同步 · v5</small></div></div>
-      <div id="status" class="status"><span class="dot"></span><span>正在连接 Supabase...</span></div>
-    </div>
-    <div class="tabs"><button class="tab active" data-tab="today">今日安排</button><button class="tab" data-tab="me">我的身份</button><button class="tab" data-tab="admin">Admin 设置</button></div>
-  </div>
-  <div class="wrap"><main id="app"></main></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://wwjgazaylhtnzawlofmy.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_wDCGxWePLoZRLe0oRquorg_YoFa07uo";
-    const TABLE = "ops_settings";
-    const ID = 1;
-    const APP_VERSION = "professional-v7";
-    const days = [
-      {key:'mon',label:'星期一'}, {key:'tue',label:'星期二'}, {key:'wed',label:'星期三'},
-      {key:'thu',label:'星期四'}, {key:'fri',label:'星期五'}, {key:'sat',label:'星期六'}, {key:'sun',label:'星期日'}
-    ];
-    const roleMeta = {
-      billing:{title:'开单',hint:'每小时检查'},
-      instant:{title:'包货 Instant',hint:'每小时检查'},
-      normal:{title:'包货 Normal',hint:'日常包货'},
-      packingVideo:{title:'Packing Video 检查',hint:'视频检查'},
-      packingList:{title:'Packing List 检查',hint:'清单检查'},
-      delivery:{title:'送货人员',hint:'送货提醒'}
-    };
-    const NAME_MAP = {"YN":"Yun Ning","PL":"Pei Ling","MX":"Mei Xin","JX":"Kah Yen"};
-    const ADMIN_PIN_HASHES = {"老板":"f1c96796e3e0422519e4fbaf58e9484e22b817d5b278229dd238a3e29f632564","Calvin":"c7a938c5b62db92fbea75e960129c304c42b987232e9877228e0a616e08a91be","Mei Xin":"a4eaffc56e3ef8336fafebac9827dc92f1751cc7227434abe0785caee50011b5"};
-    const defaultSettings = {
-      people:["Yun Ning","Pei Ling","老板","小宝","Mei Xin","Kah Yen","Annie","Vivi","Calvin"],
-      adminPeople:["老板","Mei Xin","Calvin"],
-      developerNotes:"",
-      regularOff:{mon:[],tue:["Yun Ning"],wed:["Pei Ling"],thu:["Kah Yen"],fri:["Vivi"],sat:[],sun:["Annie","Calvin"]},
-      extraAbsentByDate:{},
-      rolePriorities:{
-        billing:["Yun Ning","Pei Ling","老板","小宝"],
-        instant:["Mei Xin","Kah Yen","Pei Ling","Vivi","小宝","Annie"],
-        normal:["Kah Yen","Mei Xin","Pei Ling","Vivi","小宝","Annie"],
-        packingVideo:["Mei Xin","Calvin","老板"],
-        packingList:["Calvin","Mei Xin","老板"],
-        delivery:["Calvin","老板"]
-      },
-      reminderTimes:{
-        billing:["09:00","10:00","11:00","12:00","13:00","14:00","18:00"],
-        instant:["09:05","10:05","11:05","12:05","13:05","14:05","18:05"],
-        delivery:["11:30","18:30"]
-      }
-    };
-    let urlParams = new URLSearchParams(window.location.search);
-    let state = {
-      tab:'today', selectedDay:'mon', settings: structuredClone(defaultSettings),
-      selectedPerson: localStorage.getItem('turboSelectedPersonV5') || '',
-      adminUser:'', loginUser:'老板', now:new Date(), loading:false, _daySet:false, dragged:null, dropTarget:null, lastMigration:false
-    };
-    let sb = null;
-    const app = document.getElementById('app');
-    const statusEl = document.getElementById('status');
-    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const clone = o => JSON.parse(JSON.stringify(o));
-    const dayKeyFromJsDay = ['sun','mon','tue','wed','thu','fri','sat'];
-
-    function normName(name){ return NAME_MAP[name] || name; }
-    function normList(list){ return [...new Set((list||[]).map(normName))]; }
-    function normObjectLists(obj){ const out={}; for(const [k,v] of Object.entries(obj||{})) out[k]=normList(v); return out; }
-    function migratePayload(payload){
-      const p = clone(payload || {}); let changed = false;
-      const before = JSON.stringify(p);
-      p.people = normList(p.people || defaultSettings.people);
-      p.adminPeople = ["老板","Mei Xin","Calvin"];
-      p.regularOff = {...defaultSettings.regularOff, ...normObjectLists(p.regularOff)};
-      p.rolePriorities = {...defaultSettings.rolePriorities, ...normObjectLists(p.rolePriorities)};
-      const ex={}; for(const [date,list] of Object.entries(p.extraAbsentByDate||{})) ex[date]=normList(list); p.extraAbsentByDate=ex;
-      p.reminderTimes = {...defaultSettings.reminderTimes, ...(p.reminderTimes||{})};
-      p.developerNotes = p.developerNotes || "";
-      changed = before !== JSON.stringify(p);
-      return {payload:p, changed};
-    }
-    function mergeSettings(payload){
-      const mig = migratePayload(payload || {});
-      const p = mig.payload;
-      state.settings = {...clone(defaultSettings), ...p};
-      state.settings.regularOff = {...defaultSettings.regularOff, ...(p.regularOff||{})};
-      state.settings.rolePriorities = {...defaultSettings.rolePriorities, ...(p.rolePriorities||{})};
-      state.settings.extraAbsentByDate = {...(p.extraAbsentByDate||{})};
-      state.settings.reminderTimes = {...defaultSettings.reminderTimes, ...(p.reminderTimes||{})};
-      state.settings.adminPeople = ["老板","Mei Xin","Calvin"];
-      state.lastMigration = mig.changed;
-      if(state.selectedPerson && !state.settings.people.includes(state.selectedPerson)){
-        const next = normName(state.selectedPerson); state.selectedPerson = state.settings.people.includes(next) ? next : '';
-        localStorage.setItem('turboSelectedPersonV5', state.selectedPerson);
-      }
-    }
-    function setStatus(msg,type=''){
-      const dotCls = type==='ok'?'ok':type==='error'?'err':'';
-      statusEl.innerHTML = `<span class="dot ${dotCls}"></span><span>${esc(msg)}</span>`;
-    }
-    function shouldPauseAutoRender(){ const el=document.activeElement; return state.tab==='admin' || (el && ['INPUT','SELECT','TEXTAREA'].includes(el.tagName)); }
-    function todayParts(){
-      const parts = new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit',weekday:'long',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).formatToParts(new Date());
-      const g=t=>parts.find(p=>p.type===t)?.value||'';
-      const date = `${g('year')}-${g('month')}-${g('day')}`;
-      const time = `${g('hour')}:${g('minute')}:${g('second')} ${g('dayPeriod')}`;
-      const jsDay = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kuala_Lumpur'})).getDay();
-      return {date,weekday:g('weekday'),time,dayKey:dayKeyFromJsDay[jsDay]};
-    }
-    function fmtTime12(t){
-      if(!/^\d{2}:\d{2}$/.test(t)) return t;
-      let [h,m]=t.split(':').map(Number), am=h<12; let hh=h%12; if(hh===0) hh=12;
-      return `${hh}:${String(m).padStart(2,'0')} ${am?'AM':'PM'}`;
-    }
-    function remindersFor(role){ return (state.settings.reminderTimes?.[role]||[]).map(fmtTime12).join(' · '); }
-    function moveToLast(list, person){ return list.includes(person) ? [...list.filter(p=>p!==person),person] : list; }
-    function priority(role, absent, allPresent){
-      let list=[...(state.settings.rolePriorities?.[role]||[])].map(normName);
-      if((role==='instant'||role==='normal')&&absent.has('Yun Ning')&&list.includes('Pei Ling')){
-        list=list.filter(p=>p!=='Pei Ling'); const i=list.indexOf('Annie'); i>=0?list.splice(i,0,'Pei Ling'):list.push('Pei Ling');
-      }
-      if(allPresent) list=moveToLast(list,'小宝');
-      return list.filter(p=>!absent.has(p));
-    }
-    function assignments(){
-      const now=todayParts(); if(!state._daySet){state.selectedDay=now.dayKey; state._daySet=true;}
-      const s=state.settings, def=s.regularOff?.[state.selectedDay]||[], ex=s.extraAbsentByDate?.[now.date]||[];
-      const absent=new Set([...def,...ex].map(normName).filter(p=>s.people.includes(p)));
-      const all=absent.size===0; const out={};
-      for(const k of Object.keys(roleMeta)){ const a=priority(k,absent,all); out[k]={available:a,main:a[0]||'无人可安排'}; }
-      if(out.packingVideo.main && out.packingList.available[0]===out.packingVideo.main){
-        out.packingList.skipped = out.packingVideo.main;
-        out.packingList.available = out.packingList.available.filter(p=>p!==out.packingVideo.main);
-        out.packingList.main = out.packingList.available[0] || '无人可安排'; out.packingList.warn=true;
-      }
-      return {out, absent, def, ex, all, now};
-    }
-    function resolveAdminFromUrl(){
-      // Admin login is handled inside the page. No admin password is accepted through URL.
-      return;
-    }
-    function isAdmin(){ return !!state.adminUser && state.settings.adminPeople.includes(state.adminUser); }
-    async function sha256Hex(value){
-      const data = new TextEncoder().encode(value);
-      const hash = await crypto.subtle.digest('SHA-256', data);
-      return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
-    }
-    async function checkAdminPin(user,pin){
-      const u = normName(user);
-      const expected = ADMIN_PIN_HASHES[u];
-      if(!expected) return false;
-      const actual = await sha256Hex(`${u}:${String(pin||'').trim()}`);
-      return actual === expected;
-    }
-
-    async function init(){
-      try{
-        if(!window.supabase) throw new Error('Supabase CDN 没有载入，请检查网络。');
-        sb = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-        await load(true);
-        resolveAdminFromUrl();
-        const savedAdmin = normName(localStorage.getItem('turboAdminUserV5') || '');
-        if(!state.adminUser && savedAdmin && state.settings.adminPeople.includes(savedAdmin)) state.adminUser=savedAdmin;
-        sb.channel('ops_settings_web_v5').on('postgres_changes',{event:'*',schema:'public',table:TABLE}, payload=>{
-          if(payload.new?.payload){ mergeSettings(payload.new.payload); if(!shouldPauseAutoRender()) render(); setStatus('已同步最新资料','ok'); }
-        }).subscribe();
-        setInterval(()=>load(false),3000);
-        setInterval(()=>{ state.now=new Date(); if(state.tab==='today') render(); },1000);
-        setStatus('已连接 · 全部手机同步中','ok'); render();
-      }catch(e){ setStatus('连接失败：'+e.message,'error'); app.innerHTML=`<div class="notice error">${esc(e.message)}</div>`; }
-    }
-    async function load(first=false){
-      if(!sb) return;
-      const {data,error}=await sb.from(TABLE).select('payload').eq('id',ID).maybeSingle();
-      if(error){ setStatus('读取失败：'+error.message,'error'); return; }
-      if(data?.payload){
-        mergeSettings(data.payload);
-        if(state.lastMigration && first){ await savePatch(state.settings, true); }
-        if(!shouldPauseAutoRender() || first) render();
-      }else{
-        await sb.from(TABLE).upsert({id:ID,payload:defaultSettings},{onConflict:'id'}); mergeSettings(defaultSettings); render();
-      }
-    }
-    async function savePatch(patch, silent=false){
-      if(state.loading && !silent) return;
-      state.loading=true;
-      try{
-        if(!sb) throw new Error('Supabase 尚未连接');
-        const {data:latestData,error:loadError}=await sb.from(TABLE).select('payload').eq('id',ID).maybeSingle();
-        if(loadError) throw loadError;
-        const latest = migratePayload(latestData?.payload||{}).payload;
-        let merged = {...clone(defaultSettings), ...latest, ...patch};
-        if(patch.extraAbsentByDate) merged.extraAbsentByDate={...(latest.extraAbsentByDate||{}),...patch.extraAbsentByDate};
-        if(patch.regularOff) merged.regularOff={...(latest.regularOff||{}),...patch.regularOff};
-        if(patch.rolePriorities) merged.rolePriorities={...(latest.rolePriorities||{}),...patch.rolePriorities};
-        if(patch.reminderTimes) merged.reminderTimes={...(latest.reminderTimes||{}),...patch.reminderTimes};
-        merged.adminPeople=["老板","Mei Xin","Calvin"];
-        const {data,error}=await sb.from(TABLE).upsert({id:ID,payload:merged},{onConflict:'id'}).select('payload').single();
-        if(error) throw error;
-        mergeSettings(data?.payload||merged); if(!silent) setStatus('保存成功 · 正在同步到所有手机','ok');
-      }catch(e){ alert('保存失败：'+e.message); setStatus('保存失败：'+e.message,'error'); }
-      finally{ state.loading=false; render(); }
-    }
-    function setTab(t){ state.tab=t; document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t)); render(); }
-    document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
-    function render(){ const a=assignments(); if(state.tab==='today') renderToday(a); else if(state.tab==='me') renderMe(); else renderAdmin(a.now); }
-    function renderToday({out,def,ex,all,now}){
-      app.innerHTML = `<h1 class="title">Daily Ops 每日负责人安排</h1><div class="sub">专业版实时同步 · iOS / Android / 电脑通用 · 时间为马来西亚 12 小时制</div>
-      <div class="metricGrid">
-        <div class="card soft"><div class="label">今日马来西亚日期</div><div class="big">${now.date} · ${now.weekday}</div><div class="big" style="margin-top:10px;color:var(--gold)">${now.time}</div></div>
-        <div class="card soft"><div class="label">我的身份</div><div class="big">${esc(state.selectedPerson||'未选择')}</div><div class="muted">${isAdmin()?`Admin：${esc(state.adminUser)}`:'员工 / 只读模式'}</div></div>
-        <div class="card soft"><div class="label">同步状态</div><div class="big">${state.loading?'保存中':'实时同步'}</div><div class="muted">每 3 秒自动更新</div></div>
+<div class="wrap">
+  <div class="top">
+    <div class="hero">
+      <div class="eyebrow">TURBO JEWELLERY · Daily Operations</div>
+      <h1>Daily Ops 每日负责人安排</h1>
+      <div class="sub">统一查看今日负责人、休息人员、岗位优先顺序与提醒时间。Admin 修改后，所有设备会自动同步。</div>
+      <div class="statusbar">
+        <span class="pill" id="syncStatus">同步中…</span>
+        <span class="pill" id="adminStatus">员工查看模式</span>
+        <span class="pill" id="notifyStatus">提醒未开启</span>
       </div>
-      <div class="card soft"><div class="between"><div><div class="label">查看星期</div><div class="row">${days.map(d=>`<button class="day ${state.selectedDay===d.key?'active':''}" onclick="state.selectedDay='${d.key}';render()">${d.label}</button>`).join('')}</div></div></div></div>
-      ${all?'<div class="notice ok">全部人员到齐：小宝自动排最后。</div>':''}
-      <div class="section">当天没来 / 休息人员</div><div class="row">${state.settings.people.map(p=>`<span class="pill ${def.includes(p)?'fixed':ex.includes(p)?'absent':''}">${esc(p)} · ${def.includes(p)?'固定休息':ex.includes(p)?'临时没来':'有来'}</span>`).join('')}</div>
-      <div class="section">今日岗位</div><div class="roleGrid">${Object.keys(roleMeta).map(k=>roleCard(k,out[k])).join('')}</div>`;
-    }
-    function roleCard(k,a){
-      const rem = remindersFor(k); const active = state.selectedPerson && a.main===state.selectedPerson;
-      return `<div class="card roleCard" style="${active?'border-color:#86efac;box-shadow:0 0 0 2px #bbf7d0, var(--shadow)':''}">
-        <div class="roleHeader"><div><div class="label">负责岗位</div><div class="roleTitle">${roleMeta[k].title}</div></div>${rem?`<div class="reminderBadge">⏰ ${esc(rem)}</div>`:`<div class="reminderBadge">—</div>`}</div>
-        <div class="personLine"><div class="label">当天负责人</div><div class="personName">${esc(a.main)}</div></div>
-        ${a.warn?`<div class="notice error">Packing Video 已由 ${esc(a.skipped)} 负责，Packing List 自动跳下一位。</div>`:''}
-        <div class="available"><div class="label">可用优先顺序</div>${a.available.map((p,i)=>`<div class="listItem"><b>${i+1}. ${esc(p)}</b>${i===0?'<span class="badge">负责人</span>':''}</div>`).join('')||'<div class="empty">没有可用人员，请手动安排。</div>'}</div>
-      </div>`;
-    }
-    function renderMe(){
-      app.innerHTML = `<h1 class="title">我的身份</h1><div class="sub">选择自己是谁，系统只会针对你的岗位显示提醒状态。</div>
-        <div class="card"><div class="label">员工身份</div><div class="row">${state.settings.people.map(p=>`<button class="pill ${state.selectedPerson===p?'active':''}" onclick="selectPerson('${esc(p)}')">${esc(p)}</button>`).join('')}</div><div class="divider"></div><button class="btn light" onclick="selectPerson('')">清除身份</button></div>`;
-    }
-    function renderAdmin(now){
-      if(!isAdmin()){
-        const chosen = state.loginUser || '老板';
-        app.innerHTML = `<h1 class="title">Admin 设置</h1><div class="sub">员工可直接查看；Admin 选择账号并输入对应密码后才能修改资料。</div>
-          <div class="card loginPanel">
-            <div class="label">选择 Admin 账号</div>
-            <div class="adminChoices">${state.settings.adminPeople.map(u=>`<button type="button" class="adminChoice ${chosen===u?'active':''}" onclick="selectAdminUser('${esc(u)}')">${esc(u)}</button>`).join('')}</div>
-            <div class="label">输入密码</div>
-            <div class="loginActions">
-              <input id="adminPinInput" class="input" type="password" inputmode="numeric" autocomplete="one-time-code" placeholder="输入 ${esc(chosen)} 的密码" onkeydown="if(event.key==='Enter') adminLogin()">
-              <button type="button" class="btn gold" onclick="adminLogin()">登入 Admin</button>
-            </div>
-            <div class="notice gold" style="margin-top:14px">Admin 账号验证通过后才可以修改资料。</div>
-          </div>`;
-        setTimeout(()=>{ const el=document.getElementById('adminPinInput'); if(el) el.focus(); },80);
-        return;
-      }
-      const s=state.settings, ex=s.extraAbsentByDate?.[now.date]||[];
-      app.innerHTML = `<h1 class="title">Admin 设置</h1><div class="sub">当前 Admin：${esc(state.adminUser)} · 所有修改会同步到全部员工手机</div>
-        <div class="row"><button class="btn danger" onclick="logoutAdmin()">退出 Admin</button><button class="btn light" onclick="load(true)">重新同步</button></div>
-        <div class="section">今天临时没来</div><div class="card"><div class="row">${s.people.map(p=>`<button class="pill ${ex.includes(p)?'absent':''}" onclick="toggleExtra('${esc(p)}')">${esc(p)}${ex.includes(p)?' · 临时没来':''}</button>`).join('')}</div></div>
-        <div class="section">员工名单</div><div class="adminBox"><div class="grid2"><input id="newEmp" class="input" placeholder="输入员工名字，例如 New Staff"><button class="btn gold" onclick="addEmployee()">添加员工</button></div><div class="divider"></div>${s.people.map(p=>`<div class="listItem"><b>${esc(p)}</b><button class="btn danger" onclick="deleteEmployee('${esc(p)}')">删除</button></div>`).join('')}</div>
-        <div class="section">固定休息设置</div>${days.map(d=>`<div class="adminBox"><div class="between"><h3>${d.label}</h3><span class="muted">点击切换固定休息</span></div><div class="row">${s.people.map(p=>`<button class="pill ${(s.regularOff?.[d.key]||[]).includes(p)?'active':''}" onclick="toggleRegular('${d.key}','${esc(p)}')">${esc(p)}</button>`).join('')}</div></div>`).join('')}
-        <div class="section">岗位优先顺序</div><div class="notice gold">电脑可直接拖拽调整排序；手机也可以用 ↑ ↓ 按钮，效果一样会同步。</div><div class="prioGrid">${Object.keys(roleMeta).map(k=>priorityEditor(k)).join('')}</div>
-        <div class="section">提醒时间</div><div class="adminBox"><div class="grid2"><select id="remRole" class="input">${Object.keys(roleMeta).map(k=>`<option value="${k}">${roleMeta[k].title}</option>`).join('')}</select><input id="remTime" class="input" placeholder="例如 09:00"></div><button class="btn gold" style="margin-top:12px" onclick="addReminder()">添加提醒时间</button>${Object.entries(s.reminderTimes||{}).map(([k,times])=>`<h3>${roleMeta[k]?.title||k}</h3><div class="row">${(times||[]).map(t=>`<button class="pill gold" onclick="removeReminder('${k}','${t}')">${fmtTime12(t)} ×</button>`).join('')||'<span class="muted">没有提醒时间</span>'}</div>`).join('')}</div>
-        <div class="section">开发备注 / 修改需求</div><textarea id="devNotes" class="input" rows="5" placeholder="记录之后想修改的功能、规则或画面要求">${esc(s.developerNotes||'')}</textarea><button class="btn" style="margin-top:12px" onclick="saveDevNotes()">保存备注</button>`;
-    }
-    function priorityEditor(k){
-      const list=state.settings.rolePriorities?.[k]||[]; const canAdd=state.settings.people.filter(p=>!list.includes(p));
-      return `<div class="prioCard"><div class="prioHead"><h3>${roleMeta[k].title}</h3><span class="reminderBadge">${roleMeta[k].hint}</span></div>
-        ${list.map((p,i)=>`<div class="priorityRow ${state.dropTarget===k+'-'+i?'dropTarget':''}" draggable="true" ondragstart="dragStart(event,'${k}',${i})" ondragover="dragOver(event,'${k}',${i})" ondragleave="dragLeave()" ondrop="dropPrio(event,'${k}',${i})" ondragend="dragEnd()"><span class="rank">${i+1}</span><span class="grip">⋮⋮</span><b>${esc(p)}</b><button class="btn light" onclick="movePrio('${k}',${i},-1)">↑</button><button class="btn light" onclick="movePrio('${k}',${i},1)">↓</button><button class="btn danger" onclick="removePrio('${k}','${esc(p)}')">删</button></div>`).join('')||'<div class="empty">此岗位还没有员工</div>'}
-        <div class="divider"></div><div class="row">${canAdd.map(p=>`<button class="smallBtn" onclick="addPrio('${k}','${esc(p)}')">+ ${esc(p)}</button>`).join('')||'<span class="muted">所有员工已加入此岗位</span>'}</div></div>`;
-    }
-    window.selectPerson=(p)=>{ state.selectedPerson=normName(p); if(state.selectedPerson)localStorage.setItem('turboSelectedPersonV5',state.selectedPerson); else localStorage.removeItem('turboSelectedPersonV5'); renderMe(); };
-    window.selectAdminUser=(u)=>{ state.loginUser=normName(u); renderAdmin(todayParts()); };
-    window.adminLogin=async()=>{ const user=normName(state.loginUser||'老板'); const input=document.getElementById('adminPinInput'); const pin=String(input?.value||'').trim(); if(await checkAdminPin(user,pin)){ state.adminUser=user; localStorage.setItem('turboAdminUserV5', user); renderAdmin(todayParts()); setStatus('Admin 已登入：'+user,'ok'); } else { alert('密码不正确，请重新输入'); if(input){ input.value=''; input.focus(); } } };
-    window.logoutAdmin=()=>{ state.adminUser=''; localStorage.removeItem('turboAdminUserV5'); history.replaceState(null,'',location.pathname+'?v=7'); renderAdmin(todayParts()); };
-    window.toggleExtra=(p)=>{ const date=todayParts().date; const cur=state.settings.extraAbsentByDate?.[date]||[]; const n=normName(p); const next=cur.includes(n)?cur.filter(x=>x!==n):[...cur,n]; savePatch({extraAbsentByDate:{[date]:next}}); };
-    window.addEmployee=()=>{ const v=normName(document.getElementById('newEmp').value.trim()); if(!v||state.settings.people.includes(v)) return; savePatch({people:[...state.settings.people,v]}); };
-    window.deleteEmployee=(p)=>{ p=normName(p); if(!confirm('确定删除 '+p+'？')) return; const people=state.settings.people.filter(x=>x!==p); const regularOff={}; for(const d of days) regularOff[d.key]=(state.settings.regularOff?.[d.key]||[]).filter(x=>x!==p); const rolePriorities={}; for(const k of Object.keys(roleMeta)) rolePriorities[k]=(state.settings.rolePriorities?.[k]||[]).filter(x=>x!==p); const extraAbsentByDate={}; for(const [date,list] of Object.entries(state.settings.extraAbsentByDate||{})) extraAbsentByDate[date]=(list||[]).filter(x=>x!==p); savePatch({people,regularOff,rolePriorities,extraAbsentByDate}); };
-    window.toggleRegular=(d,p)=>{ p=normName(p); const cur=state.settings.regularOff?.[d]||[]; const next=cur.includes(p)?cur.filter(x=>x!==p):[...cur,p]; savePatch({regularOff:{[d]:next}}); };
-    window.movePrio=(k,i,dir)=>{ const list=[...(state.settings.rolePriorities?.[k]||[])]; const j=i+dir; if(j<0||j>=list.length)return; [list[i],list[j]]=[list[j],list[i]]; savePatch({rolePriorities:{[k]:list}}); };
-    window.removePrio=(k,p)=>{ p=normName(p); savePatch({rolePriorities:{[k]:(state.settings.rolePriorities?.[k]||[]).filter(x=>x!==p)}}); };
-    window.addPrio=(k,p)=>{ p=normName(p); const list=state.settings.rolePriorities?.[k]||[]; if(!list.includes(p)) savePatch({rolePriorities:{[k]:[...list,p]}}); };
-    window.dragStart=(e,k,i)=>{ state.dragged={k,i}; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; };
-    window.dragOver=(e,k,i)=>{ e.preventDefault(); state.dropTarget=k+'-'+i; e.currentTarget.classList.add('dropTarget'); };
-    window.dragLeave=()=>{};
-    window.dragEnd=()=>{ state.dragged=null; state.dropTarget=null; document.querySelectorAll('.dragging,.dropTarget').forEach(el=>el.classList.remove('dragging','dropTarget')); };
-    window.dropPrio=(e,k,to)=>{ e.preventDefault(); const d=state.dragged; dragEnd(); if(!d||d.k!==k||d.i===to)return; const list=[...(state.settings.rolePriorities?.[k]||[])]; const [moved]=list.splice(d.i,1); list.splice(to,0,moved); savePatch({rolePriorities:{[k]:list}}); };
-    window.addReminder=()=>{ const k=document.getElementById('remRole').value,t=document.getElementById('remTime').value.trim(); if(!/^\d{2}:\d{2}$/.test(t)) return alert('时间格式请写 09:00'); const list=state.settings.reminderTimes?.[k]||[]; if(!list.includes(t)) savePatch({reminderTimes:{[k]:[...list,t].sort()}}); };
-    window.removeReminder=(k,t)=>{ savePatch({reminderTimes:{[k]:(state.settings.reminderTimes?.[k]||[]).filter(x=>x!==t)}}); };
-    window.saveDevNotes=()=>{ savePatch({developerNotes:document.getElementById('devNotes').value}); };
-    init();
-  </script>
+    </div>
+    <div class="card card-pad clock">
+      <div class="muted">马来西亚时间</div>
+      <div class="time" id="timeNow">--:-- --</div>
+      <div><b id="dateNow">----</b> · <span id="weekdayNow">----</span></div>
+      <div class="divider"></div>
+      <label class="muted">我的身份</label>
+      <select id="identitySelect"></select>
+      <button class="btn gold" id="enableNotifyBtn">开启岗位提醒</button>
+      <div class="muted" style="font-size:12px;line-height:1.45">只有当“我的身份”是该岗位当天负责人，并且到达该岗位提醒时间时，本机才会响。</div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h2>选择星期</h2>
+    <button class="btn ghost" id="refreshBtn">立即同步</button>
+  </div>
+  <div class="tabs" id="dayTabs"></div>
+
+  <div class="section-title">
+    <h2>当天出勤状态</h2>
+    <span class="muted" id="todayKeyLabel"></span>
+  </div>
+  <div class="card card-pad">
+    <div class="people" id="peopleGrid"></div>
+  </div>
+
+  <div class="section-title">
+    <h2>今日岗位负责人</h2>
+    <span class="muted">负责人已对齐显示</span>
+  </div>
+  <div class="grid roles" id="rolesGrid"></div>
+
+  <div class="section-title">
+    <h2>Admin 设置</h2>
+    <span class="muted">员工无需登录也可查看</span>
+  </div>
+  <div class="card card-pad" id="loginCard">
+    <div class="form-grid">
+      <select id="adminName">
+        <option value="老板">老板</option>
+        <option value="Mei Xin">Mei Xin</option>
+        <option value="Calvin">Calvin</option>
+      </select>
+      <input id="adminPin" type="password" placeholder="输入 Admin 密码" autocomplete="current-password" />
+      <button class="btn primary" id="loginBtn">登入 Admin</button>
+    </div>
+  </div>
+
+  <div class="admin-panel">
+    <div class="card card-pad">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        <div>
+          <div class="mini-title">Admin 控制台</div>
+          <div class="muted" id="adminWho">已登入</div>
+        </div>
+        <button class="btn danger" id="logoutBtn">退出 Admin</button>
+      </div>
+    </div>
+
+    <div class="section-title"><h2>Admin · 当天临时没来</h2><button class="btn" id="clearExtraBtn">清除当天临时没来</button></div>
+    <div class="card card-pad"><div class="people" id="adminAbsentGrid"></div></div>
+
+    <div class="section-title"><h2>Admin · 提醒时间</h2><span class="muted">修改后所有人的提醒时间自动跟着变</span></div>
+    <div class="card card-pad" id="reminderEditor"></div>
+
+    <div class="section-title"><h2>Admin · 岗位优先顺序</h2><span class="muted">可拖拽调整，手机也可用 ↑ ↓</span></div>
+    <div class="card card-pad" id="priorityEditor"></div>
+
+    <div class="section-title"><h2>Admin · 固定休息</h2></div>
+    <div class="card card-pad" id="regularOffEditor"></div>
+  </div>
+
+  <div class="footer">Turbo Daily Ops · GitHub Pages + Supabase Sync</div>
+</div>
+<div class="toast" id="toast">已保存</div>
+
+<script>
+const SUPABASE_URL = "https://wwjgazaylhtnzawlofmy.supabase.co";
+const SUPABASE_KEY = "sb_publishable_wDCGxWePLoZRLe0oRquorg_YoFa07uo";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const days = [
+  ["mon","星期一"],["tue","星期二"],["wed","星期三"],["thu","星期四"],["fri","星期五"],["sat","星期六"],["sun","星期日"]
+];
+const roles = {
+  billing: { title:"开单", reminderText:"开单检查" },
+  instant: { title:"包货 Instant", reminderText:"Instant 检查" },
+  normal: { title:"包货 Normal", reminderText:"Normal 检查" },
+  packingVideo: { title:"Packing Video 检查", reminderText:"Video 检查" },
+  packingList: { title:"Packing List 检查", reminderText:"List 检查" },
+  delivery: { title:"送货人员", reminderText:"送货提醒" },
+};
+const roleKeys = Object.keys(roles);
+const adminHashes = {
+  "老板":"a994696540befd55c96017a162c7ae2685f2010a7fd3224c0ada25241913933b",
+  "Calvin":"cd2d44c931be8534bd5fa86f9d3cd8117537783d070895848e969e98791109b3",
+  "Mei Xin":"a67ff832978f7f03192fded680d070ca2bb06b8e0bc33c1b26ee843be42a3e0c"
+};
+const defaultSettings = {
+  people:["Yun Ning","Pei Ling","老板","小宝","Mei Xin","Kah Yen","Annie","Vivi","Calvin"],
+  adminPeople:["老板","Mei Xin","Calvin"],
+  regularOff:{ mon:[], tue:["Yun Ning"], wed:["Pei Ling"], thu:["Kah Yen"], fri:["Vivi"], sat:[], sun:["Annie","Calvin"] },
+  rolePriorities:{
+    billing:["Yun Ning","Pei Ling","老板","小宝"],
+    instant:["Mei Xin","Kah Yen","Pei Ling","Vivi","小宝","Annie"],
+    normal:["Kah Yen","Mei Xin","Pei Ling","Vivi","小宝","Annie"],
+    packingVideo:["Mei Xin","Calvin","老板"],
+    packingList:["Calvin","Mei Xin","老板"],
+    delivery:["Calvin","老板"]
+  },
+  reminderTimes:{
+    billing:["09:00","10:00","11:00","12:00","13:00","14:00","18:00"],
+    instant:["09:05","10:05","11:05","12:05","13:05","14:05","18:05"],
+    normal:[],
+    packingVideo:[],
+    packingList:[],
+    delivery:["11:30","18:30"]
+  },
+  extraAbsentByDate:{},
+  developerNotes:""
+};
+const nameMap = {"YN":"Yun Ning","PL":"Pei Ling","MX":"Mei Xin","JX":"Kah Yen"};
+let settings = JSON.parse(JSON.stringify(defaultSettings));
+let selectedDay = localStorage.getItem("tdoSelectedDay") || getTodayDayKey();
+let selectedPerson = localStorage.getItem("tdoIdentity") || "";
+let notificationsEnabled = localStorage.getItem("tdoNotifyEnabled") === "1";
+let adminUser = sessionStorage.getItem("tdoAdmin") || "";
+let syncing = false;
+let lastSavedAt = 0;
+let lastTriggered = JSON.parse(localStorage.getItem("tdoTriggered") || "{}");
+
+function normalize(s){
+  const x = {...defaultSettings, ...(s||{})};
+  x.people = (x.people||defaultSettings.people).map(n=>nameMap[n]||n);
+  for(const d of Object.keys(defaultSettings.regularOff)){
+    x.regularOff[d] = (x.regularOff?.[d]||[]).map(n=>nameMap[n]||n);
+  }
+  for(const r of roleKeys){
+    x.rolePriorities[r] = (x.rolePriorities?.[r]||defaultSettings.rolePriorities[r]||[]).map(n=>nameMap[n]||n);
+    x.reminderTimes[r] = x.reminderTimes?.[r] || defaultSettings.reminderTimes[r] || [];
+  }
+  x.extraAbsentByDate = x.extraAbsentByDate || {};
+  for(const k of Object.keys(x.extraAbsentByDate)){
+    x.extraAbsentByDate[k] = (x.extraAbsentByDate[k]||[]).map(n=>nameMap[n]||n);
+  }
+  return x;
+}
+function todayKey(){
+  const f = new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kuala_Lumpur",year:"numeric",month:"2-digit",day:"2-digit"});
+  return f.format(new Date());
+}
+function getTodayDayKey(){
+  const idx = Number(new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Kuala_Lumpur",weekday:"short"}).formatToParts(new Date())[0]?.value ? new Date().toLocaleString("en-US",{timeZone:"Asia/Kuala_Lumpur",weekday:"short"}) : 0);
+  const weekday = new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Kuala_Lumpur",weekday:"short"}).format(new Date());
+  return {Mon:"mon",Tue:"tue",Wed:"wed",Thu:"thu",Fri:"fri",Sat:"sat",Sun:"sun"}[weekday] || "mon";
+}
+function fmt12(t){
+  const [h,m]=t.split(":").map(Number); const am=h>=12?"PM":"AM"; let hh=h%12; if(!hh) hh=12; return `${hh}:${String(m).padStart(2,"0")} ${am}`;
+}
+function toast(msg="已保存"){const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),1600)}
+async function sha256(text){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function loadSettings({silent=false}={}){
+  if(Date.now()-lastSavedAt < 1200) return;
+  try{
+    const {data,error}=await sb.from("ops_settings").select("payload").eq("id",1).maybeSingle();
+    if(error) throw error;
+    if(data?.payload){ settings = normalize(data.payload); }
+    else { await saveSettings(defaultSettings, {quiet:true}); }
+    document.getElementById("syncStatus").textContent = "已同步";
+    render();
+  }catch(e){
+    document.getElementById("syncStatus").textContent = "同步失败";
+    if(!silent) console.warn(e);
+  }
+}
+async function saveSettings(patch, {quiet=false}={}){
+  syncing=true;
+  try{
+    const {data:latest}=await sb.from("ops_settings").select("payload").eq("id",1).maybeSingle();
+    const latestPayload = normalize(latest?.payload || settings);
+    let merged = {...latestPayload, ...patch};
+    if(patch.extraAbsentByDate) merged.extraAbsentByDate = {...(latestPayload.extraAbsentByDate||{}), ...patch.extraAbsentByDate};
+    if(patch.regularOff) merged.regularOff = {...(latestPayload.regularOff||{}), ...patch.regularOff};
+    if(patch.rolePriorities) merged.rolePriorities = {...(latestPayload.rolePriorities||{}), ...patch.rolePriorities};
+    if(patch.reminderTimes) merged.reminderTimes = {...(latestPayload.reminderTimes||{}), ...patch.reminderTimes};
+    merged = normalize(merged);
+    const {data,error}=await sb.from("ops_settings").upsert({id:1,payload:merged},{onConflict:"id"}).select("payload").single();
+    if(error) throw error;
+    settings = normalize(data?.payload || merged);
+    lastSavedAt=Date.now();
+    render();
+    if(!quiet) toast();
+  }catch(e){ alert("保存失败："+e.message); }
+  finally{ syncing=false; }
+}
+function absentSet(){
+  const key=todayKey();
+  return new Set([...(settings.regularOff[selectedDay]||[]), ...((settings.extraAbsentByDate||{})[key]||[])]);
+}
+function getPriority(roleKey, abs){
+  let list=[...(settings.rolePriorities[roleKey]||[])];
+  if((roleKey==="instant"||roleKey==="normal") && abs.has("Yun Ning") && list.includes("Pei Ling")){
+    list=list.filter(p=>p!=="Pei Ling");
+    const i=list.indexOf("Annie"); if(i>=0) list.splice(i,0,"Pei Ling"); else list.push("Pei Ling");
+  }
+  if(abs.size===0 && list.includes("小宝")) list=[...list.filter(p=>p!=="小宝"),"小宝"];
+  return list.filter(p=>!abs.has(p));
+}
+function assignments(){
+  const abs=absentSet(); const out={};
+  for(const r of roleKeys) out[r]={available:getPriority(r,abs)};
+  out.packingVideo.main = out.packingVideo.available[0]||"无人可安排";
+  let pl = out.packingList.available;
+  if(pl[0] && pl[0]===out.packingVideo.main) pl=pl.filter(p=>p!==out.packingVideo.main);
+  out.packingList.available=pl;
+  for(const r of roleKeys) out[r].main = out[r].available[0]||"无人可安排";
+  return out;
+}
+function renderClock(){
+  const now=new Date();
+  const parts = new Intl.DateTimeFormat("zh-MY",{timeZone:"Asia/Kuala_Lumpur",year:"numeric",month:"2-digit",day:"2-digit",weekday:"long",hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).formatToParts(now);
+  const get=t=>parts.find(p=>p.type===t)?.value||"";
+  document.getElementById("timeNow").textContent = `${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`;
+  document.getElementById("dateNow").textContent = `${get("year")}-${get("month")}-${get("day")}`;
+  document.getElementById("weekdayNow").textContent = get("weekday");
+}
+function render(){
+  document.body.classList.toggle("admin", !!adminUser);
+  document.getElementById("loginCard").classList.toggle("hidden", !!adminUser);
+  document.getElementById("adminStatus").textContent = adminUser ? `Admin：${adminUser}` : "员工查看模式";
+  document.getElementById("adminWho").textContent = adminUser ? `当前 Admin：${adminUser}` : "";
+  document.getElementById("notifyStatus").textContent = notificationsEnabled ? "岗位提醒已开启" : "提醒未开启";
+  document.getElementById("todayKeyLabel").textContent = todayKey();
+
+  const identity = document.getElementById("identitySelect");
+  const old=identity.value || selectedPerson;
+  identity.innerHTML = `<option value="">请选择我的身份</option>` + settings.people.map(p=>`<option ${p===old?"selected":""}>${p}</option>`).join("");
+  selectedPerson = old;
+  if(selectedPerson) identity.value=selectedPerson;
+
+  document.getElementById("dayTabs").innerHTML = days.map(([k,l])=>`<button class="tab ${selectedDay===k?"active":""}" onclick="selectDay('${k}')">${l}</button>`).join("");
+  const abs=absentSet();
+  document.getElementById("peopleGrid").innerHTML = settings.people.map(p=>{
+    const fixed=(settings.regularOff[selectedDay]||[]).includes(p);
+    const extra=((settings.extraAbsentByDate||{})[todayKey()]||[]).includes(p);
+    return `<div class="person ${fixed?"off":extra?"absent":""} ${p===selectedPerson?"me":""}">
+      <div class="name">${p}</div><div class="small">${fixed?"固定休息":extra?"临时没来":"有来"}</div></div>`;
+  }).join("");
+  const ass=assignments();
+  document.getElementById("rolesGrid").innerHTML = roleKeys.map(r=>{
+    const times=(settings.reminderTimes[r]||[]).map(fmt12).map(t=>`<span class="reminder-chip">${t}</span>`).join("") || `<span class="reminder-chip">无提醒</span>`;
+    return `<div class="card role-card">
+      <div class="role-head"><div class="role-title">${roles[r].title}</div><div class="reminders">${times}</div></div>
+      <div class="leader"><div class="label">当天负责人</div><div class="who">${ass[r].main}</div></div>
+      <div class="order">${ass[r].available.map((p,i)=>`<div class="order-row"><span>${i+1}. ${p}</span>${i===0?'<span class="tag">负责人</span>':""}</div>`).join("") || '<div class="muted">没有可用人员</div>'}</div>
+    </div>`;
+  }).join("");
+  if(adminUser) renderAdmin();
+}
+function renderAdmin(){
+  const key=todayKey(); const extra=(settings.extraAbsentByDate||{})[key]||[];
+  document.getElementById("adminAbsentGrid").innerHTML = settings.people.map(p=>{
+    const active=extra.includes(p);
+    return `<button class="person ${active?"absent":""}" onclick="toggleExtra('${p.replaceAll("'","\\'")}')"><div class="name">${p}</div><div class="small">${active?"临时没来":"有来"}</div></button>`;
+  }).join("");
+  document.getElementById("reminderEditor").innerHTML = roleKeys.map(r=>`
+    <div class="role-editor">
+      <div class="mini-title">${roles[r].title}</div>
+      <div class="form-grid" style="grid-template-columns:1fr auto">
+        <input type="time" id="newtime-${r}">
+        <button class="btn" onclick="addTime('${r}')">添加时间</button>
+      </div>
+      <div class="time-list">${(settings.reminderTimes[r]||[]).map(t=>`<span class="time-chip"><b>${fmt12(t)}</b><button class="smallbtn" onclick="removeTime('${r}','${t}')">×</button></span>`).join("") || '<span class="muted">无提醒时间</span>'}</div>
+    </div>`).join("");
+  document.getElementById("priorityEditor").innerHTML = roleKeys.map(r=>`
+    <div class="role-editor"><div class="mini-title">${roles[r].title}</div>
+      ${(settings.rolePriorities[r]||[]).map((p,i)=>`<div class="drag-row" draggable="true" ondragstart="dragStart(event,'${r}',${i})" ondragover="event.preventDefault()" ondrop="dropRow(event,'${r}',${i})">
+        <span class="handle">☰</span><span class="drag-name">${i+1}. ${p}</span>
+        <button class="smallbtn" onclick="movePriority('${r}',${i},-1)">↑</button><button class="smallbtn" onclick="movePriority('${r}',${i},1)">↓</button>
+      </div>`).join("")}
+    </div>`).join("");
+  document.getElementById("regularOffEditor").innerHTML = days.map(([d,l])=>`
+    <div class="role-editor"><div class="mini-title">${l}</div>
+      <div class="people">${settings.people.map(p=>{
+        const on=(settings.regularOff[d]||[]).includes(p);
+        return `<button class="person ${on?"off":""}" onclick="toggleRegular('${d}','${p.replaceAll("'","\\'")}')"><div class="name">${p}</div><div class="small">${on?"固定休息":"上班"}</div></button>`;
+      }).join("")}</div>
+    </div>`).join("");
+}
+window.selectDay = (k)=>{ selectedDay=k; localStorage.setItem("tdoSelectedDay",k); render(); };
+window.toggleExtra = async(p)=>{
+  const key=todayKey(); const current=(settings.extraAbsentByDate||{})[key]||[];
+  const next=current.includes(p)?current.filter(x=>x!==p):[...current,p];
+  await saveSettings({extraAbsentByDate:{[key]:next}});
+};
+window.toggleRegular = async(d,p)=>{
+  const cur=settings.regularOff[d]||[]; const next=cur.includes(p)?cur.filter(x=>x!==p):[...cur,p];
+  await saveSettings({regularOff:{[d]:next}});
+};
+window.addTime = async(r)=>{
+  const val=document.getElementById(`newtime-${r}`).value;
+  if(!val) return;
+  const list=[...(settings.reminderTimes[r]||[])];
+  if(!list.includes(val)) list.push(val);
+  list.sort();
+  await saveSettings({reminderTimes:{[r]:list}});
+};
+window.removeTime = async(r,t)=>{
+  await saveSettings({reminderTimes:{[r]:(settings.reminderTimes[r]||[]).filter(x=>x!==t)}});
+};
+window.movePriority = async(r,i,dir)=>{
+  const list=[...(settings.rolePriorities[r]||[])]; const ni=i+dir;
+  if(ni<0||ni>=list.length) return;
+  [list[i],list[ni]]=[list[ni],list[i]];
+  await saveSettings({rolePriorities:{[r]:list}});
+};
+let dragInfo=null;
+window.dragStart=(e,r,i)=>{dragInfo={r,i}; e.currentTarget.classList.add("dragging");};
+window.dropRow=async(e,r,i)=>{
+  e.preventDefault();
+  if(!dragInfo||dragInfo.r!==r) return;
+  const list=[...(settings.rolePriorities[r]||[])]; const [item]=list.splice(dragInfo.i,1); list.splice(i,0,item); dragInfo=null;
+  await saveSettings({rolePriorities:{[r]:list}});
+};
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    [880,988,1046].forEach((freq,idx)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain(), t=ctx.currentTime+idx*.38;
+      o.frequency.value=freq; o.type="sine"; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.22,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+.32);
+      o.start(t); o.stop(t+.34);
+    });
+  }catch(e){}
+}
+function currentHHMM(){
+  return new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Kuala_Lumpur",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date());
+}
+function checkReminders(){
+  if(!notificationsEnabled || !selectedPerson) return;
+  const ass=assignments(); const hm=currentHHMM(); const day=todayKey();
+  for(const r of roleKeys){
+    if(ass[r].main !== selectedPerson) continue;
+    if(!(settings.reminderTimes[r]||[]).includes(hm)) continue;
+    const key=`${day}-${r}-${hm}-${selectedPerson}`;
+    if(lastTriggered[key]) continue;
+    lastTriggered[key]=true; localStorage.setItem("tdoTriggered",JSON.stringify(lastTriggered));
+    const title=`${roles[r].title} 提醒`;
+    const body=`当前负责人：${selectedPerson} · 时间：${fmt12(hm)}`;
+    if("Notification" in window && Notification.permission==="granted") new Notification(title,{body});
+    beep(); toast(title);
+  }
+}
+document.getElementById("identitySelect").addEventListener("change",e=>{selectedPerson=e.target.value; localStorage.setItem("tdoIdentity",selectedPerson); render();});
+document.getElementById("enableNotifyBtn").addEventListener("click",async()=>{
+  if(!selectedPerson){ alert("请先选择我的身份"); return; }
+  if("Notification" in window && Notification.permission!=="granted"){
+    const p=await Notification.requestPermission();
+    if(p!=="granted"){ alert("通知权限没有开启，网页只能播放提示音。"); }
+  }
+  notificationsEnabled=true; localStorage.setItem("tdoNotifyEnabled","1"); beep(); render(); toast("岗位提醒已开启");
+});
+document.getElementById("loginBtn").addEventListener("click",async()=>{
+  const name=document.getElementById("adminName").value;
+  const pin=document.getElementById("adminPin").value;
+  const h=await sha256(pin);
+  if(adminHashes[name]===h){ adminUser=name; sessionStorage.setItem("tdoAdmin",name); document.getElementById("adminPin").value=""; render(); toast("Admin 已登入"); }
+  else alert("Admin 资料不正确");
+});
+document.getElementById("logoutBtn").addEventListener("click",()=>{adminUser=""; sessionStorage.removeItem("tdoAdmin"); render();});
+document.getElementById("refreshBtn").addEventListener("click",()=>loadSettings());
+document.getElementById("clearExtraBtn").addEventListener("click",()=>saveSettings({extraAbsentByDate:{[todayKey()]:[]}}));
+
+setInterval(renderClock,1000); renderClock();
+loadSettings();
+setInterval(()=>loadSettings({silent:true}),3000);
+setInterval(checkReminders,15000);
+</script>
 </body>
 </html>
