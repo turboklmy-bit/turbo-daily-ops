@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Turbo Daily Ops</title>
-  <!-- Professional v12: compact professional role cards; leader directly under title; clean reminder layout -->
+  <!-- Professional v13: fixed sync indicator and boxed reminder grid -->
   <meta name="theme-color" content="#14110b" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -32,6 +32,8 @@
     .statusbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
     .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(212,175,98,.38);background:rgba(255,255,255,.08);border-radius:999px;padding:8px 11px;font-size:13px}
     .pill.sync{background:#fff;color:#4e463c;border-color:#e8dcc8}
+    .floating-sync{position:fixed;left:18px;bottom:18px;z-index:80;display:flex;align-items:center;gap:10px;background:rgba(255,253,248,.96);border:1px solid var(--line);box-shadow:0 14px 34px rgba(31,24,10,.14);border-radius:999px;padding:10px 13px;font-weight:850;color:#5d554b;backdrop-filter:blur(10px)}
+    .floating-sync .sync-dot{width:12px;height:12px}
     .sync-dot{width:10px;height:10px;border-radius:999px;background:#22b45b;display:inline-block;box-shadow:0 0 0 6px rgba(34,180,91,.12)}
     .sync-dot.fail{background:#d33b3b;box-shadow:0 0 0 6px rgba(211,59,59,.12)}
     .sync-dot.work{background:#d69a2d;box-shadow:0 0 0 6px rgba(214,154,45,.12)}
@@ -70,11 +72,12 @@
     .person.absent{background:#fff1ef;border-color:#e8a79d;color:#7a1f1f}
     .person.off{background:#eee6da;color:#66594a;border-color:#d8c7ad}
     .person.me{outline:3px solid rgba(181,138,53,.55);border-color:var(--gold);background:#fff6dc;box-shadow:0 10px 24px rgba(181,138,53,.18)}
-    .role-card{padding:16px;display:flex;flex-direction:column;gap:10px;min-height:0;align-self:stretch}
-    .role-head{display:grid;grid-template-columns:minmax(120px,auto) minmax(0,1fr);align-items:start;gap:10px 14px;min-height:0;margin:0}
-    .role-title{font-weight:1000;font-size:18px;line-height:1.18;white-space:normal;word-break:keep-all;display:block;margin:0;padding-top:4px;min-width:0}
-    .reminders{display:grid;grid-template-columns:repeat(4,minmax(68px,1fr));gap:7px;align-items:start;justify-items:stretch;margin:0;min-width:0}
-    .reminder-chip{font-size:12px;border:1px solid #ead8af;background:#fff7e7;color:#7b5718;border-radius:999px;padding:7px 8px;font-weight:900;text-align:center;min-height:31px;display:flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}
+    .role-card{padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0;align-self:stretch}
+    .role-head{display:flex;flex-direction:column;align-items:stretch;gap:10px;min-height:0;margin:0}
+    .role-title-line{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:28px}
+    .role-title{font-weight:1000;font-size:18px;line-height:1.22;white-space:normal;word-break:keep-all;display:block;margin:0;min-width:0}
+    .reminders{display:grid;grid-template-columns:repeat(4, minmax(72px, 1fr));gap:8px;align-items:stretch;justify-items:stretch;margin:0;min-width:0;width:100%}
+    .reminder-chip{font-size:12px;border:1px solid #ead8af;background:#fff8e9;color:#7b5718;border-radius:999px;padding:7px 8px;font-weight:900;text-align:center;min-height:34px;display:flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box;box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)}
     .leader{display:grid;grid-template-columns:94px 1fr;align-items:center;background:linear-gradient(135deg,#18130c,#2d2110);color:#fff;border-radius:18px;padding:14px;min-height:88px;height:88px;margin-top:0}
     .leader .label{font-size:12px;color:rgba(255,255,255,.66);font-weight:800;white-space:nowrap}
     .leader .who{font-size:clamp(23px,3vw,29px);font-weight:1000;text-align:right;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -107,10 +110,11 @@
       .wrap{padding:12px 10px 34px}
       h1{font-size:26px}
       .role-card{min-height:0}
-      .role-head{grid-template-columns:108px 1fr;gap:8px;min-height:70px}
-      .role-title{font-size:15px;white-space:normal}
-      .reminders{grid-template-columns:repeat(4,minmax(54px,1fr));gap:5px}
-      .reminder-chip{font-size:10.5px;padding:6px 4px}
+      .role-head{gap:8px;min-height:0}
+      .role-title-line{min-height:26px}
+      .role-title{font-size:16px;white-space:normal}
+      .reminders{grid-template-columns:repeat(4,minmax(58px,1fr));gap:6px}
+      .reminder-chip{font-size:10.5px;padding:6px 4px;min-height:32px}
       .leader{grid-template-columns:78px 1fr}
       .leader .who{font-size:22px}
       .time-list{grid-template-columns:repeat(4,minmax(58px,1fr));gap:6px}
@@ -207,6 +211,7 @@
 
   <div class="footer">Turbo Daily Ops · GitHub Pages + Supabase Sync</div>
 </div>
+<div class="floating-sync" id="floatingSync"><span class="sync-dot work"></span><span>同步中…</span></div>
 <div class="toast" id="toast">已保存</div>
 
 <script>
@@ -299,9 +304,12 @@ async function sha256(text){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 function setSyncStatus(text, state="ok"){
-  const el=document.getElementById("syncStatus");
   const cls=state==="fail"?"fail":state==="work"?"work":"";
-  el.innerHTML = `<span class="sync-dot ${cls}"></span><span>${text}</span>`;
+  const html = `<span class="sync-dot ${cls}"></span><span>${text}</span>`;
+  const el=document.getElementById("syncStatus");
+  const floating=document.getElementById("floatingSync");
+  if(el) el.innerHTML = html;
+  if(floating) floating.innerHTML = html;
 }
 async function loadSettings({silent=false}={}){
   if(Date.now()-lastSavedAt < 1200) return;
@@ -406,7 +414,10 @@ function render(){
   document.getElementById("rolesGrid").innerHTML = roleKeys.map(r=>{
     const times=[...(settings.reminderTimes[r]||[])].sort().map(fmt12).map(t=>`<span class="reminder-chip">${t}</span>`).join("") || `<span class="reminder-chip">无提醒</span>`;
     return `<div class="card role-card">
-      <div class="role-head"><div class="role-title">${roles[r].title}</div><div class="reminders">${times}</div></div>
+      <div class="role-head">
+        <div class="role-title-line"><div class="role-title">${roles[r].title}</div></div>
+        <div class="reminders">${times}</div>
+      </div>
       <div class="leader"><div class="label">当天负责人</div><div class="who">${ass[r].main}</div></div>
       <div class="order">${ass[r].available.map((p,i)=>`<div class="order-row"><span>${i+1}. ${p}</span>${i===0?'<span class="tag">负责人</span>':""}</div>`).join("") || '<div class="muted">没有可用人员</div>'}</div>
     </div>`;
